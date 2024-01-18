@@ -13,8 +13,8 @@ gc() # garbage collection - It can be useful to call gc after a large object has
 ```
 
     ##          used (Mb) gc trigger (Mb) max used (Mb)
-    ## Ncells 467080 25.0    1004322 53.7   660382 35.3
-    ## Vcells 863123  6.6    8388608 64.0  1770661 13.6
+    ## Ncells 467188 25.0    1004631 53.7   660382 35.3
+    ## Vcells 863912  6.6    8388608 64.0  1770661 13.6
 
 ``` r
 library(tidyverse)
@@ -34,6 +34,8 @@ library(tidyverse)
     ## ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
 
 ``` r
+library(readxl)
+library(fmxdat)
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 ```
 
@@ -59,15 +61,231 @@ JSE <- local_indices %>%
     rename(JSE40 = Returns)
 
 joinedDF <- left_join(SP, JSE, by = 'date')
-head(joinedDF)
+
+
+df <- joinedDF
+names <- c("S&P 500", "Rand Returns", "JSE Top 40")
+
+
+
+returns_plotter(joinedDF, c("S&P 500", "Rand Returns", "JSE Top 40"))
 ```
 
-    ## # A tibble: 6 × 4
-    ##   date         SP500 Rand_Returns    JSE40
-    ##   <date>       <dbl>        <dbl>    <dbl>
-    ## 1 2000-04-30 -0.0301     0.00790  -0.0582 
-    ## 2 2000-05-31 -0.0205    -0.000407  0.00126
-    ## 3 2000-06-30  0.0247    -0.000159  0.0565 
-    ## 4 2000-07-31 -0.0156     0.00937   0.0120 
-    ## 5 2000-08-31  0.0621     0.0634    0.105  
-    ## 6 2000-09-30 -0.0528    -0.0199   -0.0155
+    ## Warning: Using an external vector in selections was deprecated in tidyselect 1.1.0.
+    ## ℹ Please use `all_of()` or `any_of()` instead.
+    ##   # Was:
+    ##   data %>% select(i)
+    ## 
+    ##   # Now:
+    ##   data %>% select(all_of(i))
+    ## 
+    ## See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+    ## generated.
+
+    ## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+    ## ℹ Please use `linewidth` instead.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+    ## generated.
+
+    ## $`S&P 500`
+
+![](README_files/figure-markdown_github/unnamed-chunk-2-1.png)
+
+    ## 
+    ## $`Rand Returns`
+
+![](README_files/figure-markdown_github/unnamed-chunk-2-2.png)
+
+    ## 
+    ## $`JSE Top 40`
+
+![](README_files/figure-markdown_github/unnamed-chunk-2-3.png)
+
+# Stratification
+
+This analysis will first focus on seeing whether the JSE experience
+higher volatility when the S&P and the rand experiences higher
+volatility. I then investigate whether all variables experienced it
+during the GFC and Covid. This follows the practical
+
+``` r
+#Winsorizing the data to reduce influence of extreme returns
+Idxs <- joinedDF %>% 
+    gather(Index, Returns, -date) %>% 
+    mutate(Year = format(date, "%Y")) %>% 
+    group_by(Index) %>% 
+    mutate(Top = quantile(Returns, 0.99), Bot = quantile(Returns, 0.01)) %>% 
+    mutate(Returns = ifelse(Returns > Top, Top, 
+                         ifelse(Returns < Bot, Bot, Returns))) %>% 
+    ungroup()
+
+#Calculate the top quantiles of volatility in the S&P 500
+SP_SD <- joinedDF %>% 
+    select(c(date, SP500)) %>% 
+    mutate(Year = format(date, "%Y")) %>% 
+    arrange(date) %>% 
+    group_by(Year) %>% 
+    summarise(SD = sd(SP500)*sqrt(12))%>% 
+    mutate(TopQtile = quantile(SD, 0.75, na.rm = TRUE),
+           BotQtile = quantile(SD, 0.25, na.rm = TRUE))
+
+#Extract years in which S&P has high or low volatility
+SP_hivol <- SP_SD %>% 
+    filter(SD > TopQtile) %>% pull(Year)
+SP_lowvol <- SP_SD %>% 
+    filter(SD < BotQtile) %>% pull(Year)
+
+
+Idxs_no_SP <- Idxs %>% filter(Index != "SP500")
+
+Perf_comparisons <- function(df, Ys, Alias){
+#This function first calculates the full sample SD for JSE and the Rand
+#It then calculates the SD during either high or low volatility periods of S&P
+#   and compares with full sample SD
+    
+    Unconditional_SD <- 
+        df %>% 
+        group_by(Index) %>% 
+        mutate(Full_SD = sd(Returns) * sqrt(12)) %>% 
+        filter(Year %in% Ys) %>% 
+        summarise(SD = sd(Returns) * sqrt(12), across(.cols = starts_with("Full"), .fns = max)) %>% 
+        arrange(desc(SD)) %>% mutate(Period = Alias) %>% 
+        group_by(Index) %>% 
+        mutate(Ratio = SD / Full_SD)
+    
+    return(Unconditional_SD)
+  
+}
+
+#Put results in Kable tables
+perf_hi_SP <- Perf_comparisons(Idxs_no_SP, Ys = SP_hivol, Alias = "High_Vol")
+kableExtra::kable(perf_hi_SP)
+```
+
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+Index
+</th>
+<th style="text-align:right;">
+SD
+</th>
+<th style="text-align:right;">
+Full_SD
+</th>
+<th style="text-align:left;">
+Period
+</th>
+<th style="text-align:right;">
+Ratio
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+JSE40
+</td>
+<td style="text-align:right;">
+0.2299355
+</td>
+<td style="text-align:right;">
+0.1703735
+</td>
+<td style="text-align:left;">
+High_Vol
+</td>
+<td style="text-align:right;">
+1.349596
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rand_Returns
+</td>
+<td style="text-align:right;">
+0.2156021
+</td>
+<td style="text-align:right;">
+0.1716540
+</td>
+<td style="text-align:left;">
+High_Vol
+</td>
+<td style="text-align:right;">
+1.256027
+</td>
+</tr>
+</tbody>
+</table>
+
+``` r
+perf_low_SP <- Perf_comparisons(Idxs_no_SP, Ys = SP_lowvol, Alias = "Low_Vol")
+kableExtra::kable(perf_low_SP)
+```
+
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+Index
+</th>
+<th style="text-align:right;">
+SD
+</th>
+<th style="text-align:right;">
+Full_SD
+</th>
+<th style="text-align:left;">
+Period
+</th>
+<th style="text-align:right;">
+Ratio
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Rand_Returns
+</td>
+<td style="text-align:right;">
+0.1527510
+</td>
+<td style="text-align:right;">
+0.1716540
+</td>
+<td style="text-align:left;">
+Low_Vol
+</td>
+<td style="text-align:right;">
+0.8898772
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+JSE40
+</td>
+<td style="text-align:right;">
+0.1385775
+</td>
+<td style="text-align:right;">
+0.1703735
+</td>
+<td style="text-align:left;">
+Low_Vol
+</td>
+<td style="text-align:right;">
+0.8133743
+</td>
+</tr>
+</tbody>
+</table>
+
+# ARCH Tests
+
+#GARCH modelling

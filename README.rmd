@@ -18,6 +18,8 @@ Add binary files in bin, and closed R functions in code. Human Readable settings
 rm(list = ls()) # Clean your environment:
 gc() # garbage collection - It can be useful to call gc after a large object has been removed, as this may prompt R to return memory to the operating system.
 library(tidyverse)
+library(readxl)
+library(fmxdat)
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 ```
 # Loading and Wrangling
@@ -40,8 +42,81 @@ JSE <- local_indices %>%
     rename(JSE40 = Returns)
 
 joinedDF <- left_join(SP, JSE, by = 'date')
-head(joinedDF)
+
+
+df <- joinedDF
+names <- c("S&P 500", "Rand Returns", "JSE Top 40")
+
+
+
+returns_plotter(joinedDF, c("S&P 500", "Rand Returns", "JSE Top 40"))
+
 
 ```
 
+# Stratification
 
+This analysis will first focus on seeing whether the JSE experience higher volatility when the S&P and the rand experiences higher volatility. I then investigate whether all variables experienced it during the GFC and Covid. This follows the practical
+
+```{r}
+#Winsorizing the data to reduce influence of extreme returns
+Idxs <- joinedDF %>% 
+    gather(Index, Returns, -date) %>% 
+    mutate(Year = format(date, "%Y")) %>% 
+    group_by(Index) %>% 
+    mutate(Top = quantile(Returns, 0.99), Bot = quantile(Returns, 0.01)) %>% 
+    mutate(Returns = ifelse(Returns > Top, Top, 
+                         ifelse(Returns < Bot, Bot, Returns))) %>% 
+    ungroup()
+
+#Calculate the top quantiles of volatility in the S&P 500
+SP_SD <- joinedDF %>% 
+    select(c(date, SP500)) %>% 
+    mutate(Year = format(date, "%Y")) %>% 
+    arrange(date) %>% 
+    group_by(Year) %>% 
+    summarise(SD = sd(SP500)*sqrt(12))%>% 
+    mutate(TopQtile = quantile(SD, 0.75, na.rm = TRUE),
+           BotQtile = quantile(SD, 0.25, na.rm = TRUE))
+
+#Extract years in which S&P has high or low volatility
+SP_hivol <- SP_SD %>% 
+    filter(SD > TopQtile) %>% pull(Year)
+SP_lowvol <- SP_SD %>% 
+    filter(SD < BotQtile) %>% pull(Year)
+
+
+Idxs_no_SP <- Idxs %>% filter(Index != "SP500")
+
+Perf_comparisons <- function(df, Ys, Alias){
+#This function first calculates the full sample SD for JSE and the Rand
+#It then calculates the SD during either high or low volatility periods of S&P
+#   and compares with full sample SD
+    
+    Unconditional_SD <- 
+        df %>% 
+        group_by(Index) %>% 
+        mutate(Full_SD = sd(Returns) * sqrt(12)) %>% 
+        filter(Year %in% Ys) %>% 
+        summarise(SD = sd(Returns) * sqrt(12), across(.cols = starts_with("Full"), .fns = max)) %>% 
+        arrange(desc(SD)) %>% mutate(Period = Alias) %>% 
+        group_by(Index) %>% 
+        mutate(Ratio = SD / Full_SD)
+    
+    return(Unconditional_SD)
+  
+}
+
+#Put results in Kable tables
+perf_hi_SP <- Perf_comparisons(Idxs_no_SP, Ys = SP_hivol, Alias = "High_Vol")
+kableExtra::kable(perf_hi_SP)
+perf_low_SP <- Perf_comparisons(Idxs_no_SP, Ys = SP_lowvol, Alias = "Low_Vol")
+kableExtra::kable(perf_low_SP)
+```
+
+
+
+# ARCH Tests
+
+
+#GARCH modelling
