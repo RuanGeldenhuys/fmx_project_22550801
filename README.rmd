@@ -20,5 +20,28 @@ gc() # garbage collection - It can be useful to call gc after a large object has
 library(tidyverse)
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 ```
+# Loading and Wrangling
+
+This section deals with loading and wrangling the data into a usable format.
+```{r}
+global_indices <- readRDS("data/Global_Indices.rds")
+local_indices <- readRDS("data/LCL_Indices.rds")
+USDZAR <- readRDS("data/USDZAR.rds")
+
+SP <- global_indices %>% #This includes rand returns
+    filter(Tickers == "SPXT") %>% 
+    select(c(date, Returns, Rand_Returns)) %>% 
+    rename(SP500 = Returns)
+
+lcl_index <- "J200" # I create this variable so the choice of SA index can easily be changed
+JSE <- local_indices %>% 
+    filter(Tickers == lcl_index) %>% 
+    select(c(date, Returns)) %>% 
+    rename(JSE40 = Returns)
+
+joinedDF <- left_join(SP, JSE, by = 'date')
+head(joinedDF)
+
+```
 
 
