@@ -20,6 +20,9 @@ gc() # garbage collection - It can be useful to call gc after a large object has
 library(tidyverse)
 library(readxl)
 library(fmxdat)
+library(tseries)
+library(knitr)
+
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 ```
 # Loading and Wrangling
@@ -69,104 +72,6 @@ Idxs <- joinedDF %>%
                          ifelse(Returns < Bot, Bot, Returns))) %>% 
     ungroup()
 
-#Calculate the top quantiles of volatility in the S&P 500
-SP_SD <- joinedDF %>% 
-    select(c(date, SP500)) %>% 
-    mutate(Year = format(date, "%Y")) %>% 
-    arrange(date) %>% 
-    group_by(Year) %>% 
-    summarise(SD = sd(SP500)*sqrt(12))%>% 
-    mutate(TopQtile = quantile(SD, 0.75, na.rm = TRUE),
-           BotQtile = quantile(SD, 0.25, na.rm = TRUE))
-
-#Extract years in which S&P has high or low volatility
-SP_hivol <- SP_SD %>% 
-    filter(SD > TopQtile) %>% pull(Year)
-SP_lowvol <- SP_SD %>% 
-    filter(SD < BotQtile) %>% pull(Year)
-
-
-Idxs_no_SP <- Idxs %>% filter(Index != "SP500")
-
-Perf_comparisons <- function(df, Ys, Alias){
-#This function first calculates the full sample SD for JSE and the Rand
-#It then calculates the SD during either high or low volatility periods of S&P
-#   and compares with full sample SD
-    
-    Unconditional_SD <- 
-        df %>% 
-        group_by(Index) %>% 
-        mutate(Full_SD = sd(Returns) * sqrt(12)) %>% 
-        filter(Year %in% Ys) %>% 
-        summarise(SD = sd(Returns) * sqrt(12), across(.cols = starts_with("Full"), .fns = max)) %>% 
-        arrange(desc(SD)) %>% mutate(Period = Alias) %>% 
-        group_by(Index) %>% 
-        mutate(Ratio = SD / Full_SD)
-    
-    return(Unconditional_SD)
-  
-}
-
-#Put results in Kable tables
-perf_hi_SP <- Perf_comparisons(Idxs_no_SP, Ys = SP_hivol, Alias = "High_Vol")
-kableExtra::kable(perf_hi_SP)
-perf_low_SP <- Perf_comparisons(Idxs_no_SP, Ys = SP_lowvol, Alias = "Low_Vol")
-kableExtra::kable(perf_low_SP)
-```
-
-```{r}
-identify_vol_periods <- function(df, series_name) {
-    df %>% 
-        select(date, series_name) %>%
-        mutate(Year = format(date, "%Y")) %>%
-        arrange(date) %>%
-        group_by(Year) %>%
-        summarise(SD = sd(!!sym(series_name)) * sqrt(12)) %>%
-        mutate(HighVol = SD > quantile(SD, 0.75, na.rm = TRUE),
-               LowVol = SD < quantile(SD, 0.25, na.rm = TRUE)) %>%
-        select(Year, HighVol, LowVol)
-}
-
-Perf_comparisons <- function(df, Ys, Alias){
-#This function first calculates the full sample SD for JSE and the Rand
-#It then calculates the SD during either high or low volatility periods of S&P
-#   and compares with full sample SD
-    
-    Unconditional_SD <- 
-        df %>% 
-        group_by(Index) %>% 
-        mutate(Full_SD = sd(Returns) * sqrt(12)) %>% 
-        filter(Year %in% Ys) %>% 
-        summarise(SD = sd(Returns) * sqrt(12), across(.cols = starts_with("Full"), .fns = max)) %>% 
-        arrange(desc(SD)) %>% mutate(Period = Alias) %>% 
-        group_by(Index) %>% 
-        mutate(Ratio = SD / Full_SD)
-    
-    return(Unconditional_SD)
-  
-}
-
-
-analyze_volatility_periods <- function(joinedDF, series_name, all_indices) {
-    # Identify high and low volatility periods for the specified series
-    vol_periods <- identify_vol_periods(joinedDF, series_name)
-    
-    # Extract years of high and low volatility
-    high_vol_years <- filter(vol_periods, HighVol) %>% pull(Year)
-    low_vol_years <- filter(vol_periods, LowVol) %>% pull(Year)
-
-    # Preparing dataset by filtering out the current series
-    Idxs_no_series <- all_indices %>% filter(Index != series_name)
-
-    # Comparing other indices during the series' high volatility periods
-    perf_hi_series <- Perf_comparisons(Idxs_no_series, Ys = high_vol_years, Alias = paste("High_Vol", series_name))
-    perf_low_series <- Perf_comparisons(Idxs_no_series, Ys = low_vol_years, Alias = paste("Low_Vol", series_name))
-
-    # Combine and return the results
-    list(HighVol = perf_hi_series, LowVol = perf_low_series)
-}
-
-
 results_SP <- analyze_volatility_periods(joinedDF, "SP500", Idxs)
 kableExtra::kable(results_SP$HighVol)
 kableExtra::kable(results_SP$LowVol)
@@ -180,11 +85,82 @@ kableExtra::kable(results_JSE$HighVol)
 kableExtra::kable(results_JSE$LowVol)
 
 
-```
 
+```
 
 
 # ARCH Tests
 
+To test for ARCH effects I create a function that fits a simple AR(1) to each return series. I then run Ljung-Box tests on the residuals of each of those models. The null of "No ARCH effects" is rejected for all three series.
+
+
+```{r}
+ret_df <- joinedDF %>% 
+    select(c(-date))
+
+
+ljungbox_tests <- function(df) {
+  results <- data.frame(Series = character(),
+                        TestStatistic = numeric(),
+                        PValue = numeric(),
+                        LagOrder = numeric(),
+                        stringsAsFactors = FALSE)
+
+  for (series in names(df)) {
+    # Fit AR(1) model
+    model <- lm(df[[series]] ~ lag(df[[series]]), data = df, na.action = na.exclude)
+
+    # Perform Ljung-Box test on squared residuals
+    test_result <- Box.test(residuals(model)^2, lag = 12, type = "Ljung-Box", fitdf = 1)
+
+    # Compile results
+    results <- rbind(results, data.frame(Series = series,
+                                         TestStatistic = test_result$statistic,
+                                         PValue = test_result$p.value,
+                                         LagOrder = 12))
+  }
+
+  rownames(results) <- NULL
+
+  return(results)
+}
+
+
+arch_results <- ljungbox_tests(ret_df)
+kable(arch_results)
+
+```
+
+
 
 #GARCH modelling
+```{r}
+library(rmgarch)
+install.packages("mgarchBEKK")
+library(mgarchBEKK)
+
+garch_df <- joinedDF %>% 
+    select(c(SP500, JSE40, Rand_Returns)) 
+    
+
+estimated <- mgarchBEKK::BEKK(garch_df, params = c(1, 1, 1, 1, 1, 1,1,1,1,1,1), method = "Nelder-Mead")
+
+## Simulate series:
+simulated <- simulateBEKK(2, 1000, c(1,1))
+## Prepare the matrix:
+simulated <- do.call(cbind, simulated$eps)
+## Estimate with default arguments:
+estimated <- BEKK(simulated)
+estimated$est.params
+diagnoseBEKK(estimated)
+```
+
+
+
+```{r}
+install.packages("MTS")
+library(MTS)
+
+x = BEKK11(garch_df)
+```
+
