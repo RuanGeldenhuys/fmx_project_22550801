@@ -22,6 +22,9 @@ library(readxl)
 library(fmxdat)
 library(tseries)
 library(knitr)
+library(MTS)
+library(zoo)
+library(ggthemes)
 
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 ```
@@ -135,6 +138,7 @@ kable(arch_results)
 #GARCH modelling
 ```{r}
 library(rmgarch)
+library(rugarch)
 install.packages("mgarchBEKK")
 library(mgarchBEKK)
 
@@ -160,10 +164,161 @@ estimated$est.params
 
 #Other GARCH models
 I will now fit various univariate GARCH models to determine the best specification.
+
 ```{r}
+uniGarchFitter <- function(data){
+    models <- c("sGARCH", "gjrGARCH", "apARCH")
+    dist.model <- "norm"
+    
+    result_list <- list()
+    
+    #Loop through each column in DF
+    for (i in 1:ncol(data)) { 
+        resultDF <- data.frame(
+            Model = character(),
+            Akaike = integer(),
+            Bayes = integer(),
+            Shibata = integer(),
+            HannanQuinn = integer()
+        )
+        
+        j = 0
+        
+        #For each column loop through each type of model and fit it
+        for (model_type in models) {
+            j = j+1 #additional counter since we are looping though a string list
+            spec <- ugarchspec(
+                variance.model = list(model = model_type, garchOrder = c(1, 1)),
+                mean.model = list(armaOrder = c(1, 0), include.mean = TRUE),
+                distribution.model = dist.model
+                )
+            
+            fit <- ugarchfit(spec = spec, data = as.data.frame(data[i]))
+            
+            IC <- infocriteria(fit)
+            
+            resultDF[j, 1] <- model_type #Place the IC for that particular model in the DF
+            resultDF[j, 2:5] <- IC
+            
+            
+        }
+        
+        #add that result DF to the main list
+        result_list[[colnames(data)[i]]] <- resultDF 
+        
+    }
+    
+    return(result_list)
+}
+
+
+uGarch_tables <- uniGarchFitter(garch_df)
+
+kableExtra::kable(uGarch_tables$SP, caption = "S&P 500")
+kableExtra::kable(uGarch_tables$JSE, caption = "JSE Top 40")
+kableExtra::kable(uGarch_tables$Rand, caption = "Rand")
+
+
 
 
 ```
 
+For the S&P 500 and JSE Top 40 the gjrGARCH performs best. For the Rand it is the apARCH. I therefore select the gjrGARCH as my univariate specification.
 
+#Multivariate GARCH
+```{r}
+garch_xts <- joinedDF %>% 
+    rename(SP = SP500,
+           JSE = JSE40,
+           Rand = Rand_Returns) %>% 
+    tbl2xts::tbl_xts()
+
+uspec <- ugarchspec(variance.model = list(model = "gjrGARCH", 
+    garchOrder = c(1, 1)), mean.model = list(armaOrder = c(1, 
+    0), include.mean = TRUE), distribution.model = "norm")
+
+mspec <- multispec(replicate(ncol(garch_xts), uspec))
+
+spec.dcc = dccspec(mspec, dccOrder = c(1, 1), 
+    distribution = "mvnorm", lag.criterion = c("AIC", "HQ", "SC", 
+        "FPE")[1], model = c("DCC", "aDCC")[1])
+
+cl = makePSOCKcluster(10)
+
+mfit = multifit(mspec, garch_xts, cluster = cl)
+
+fit.dcc = dccfit(spec.dcc, data = garch_xts, solver = "solnp", 
+    cluster = cl, fit.control = list(eval.se = FALSE), fit = mfit)
+
+fit.dcc$rho.t
+```
+
+```{r}
+DCCpre <- dccPre(garch_xts, include.mean = T, p = 0)
+StdRes <- DCCpre$sresi
+
+DCC <- dccFit(StdRes, type="Engle")
+
+Rhot <- DCC$rho.t
+
+ReturnSeries = garch_xts
+DCC.TV.Cor = Rhot
+
+renamingdcc <- function(ReturnSeries, DCC.TV.Cor) {
+  
+ncolrtn <- ncol(ReturnSeries)
+namesrtn <- colnames(ReturnSeries)
+paste(namesrtn, collapse = "_")
+
+nam <- c()
+xx <- mapply(rep, times = ncolrtn:1, x = namesrtn)
+# Now let's be creative in designing a nested for loop to save the names corresponding to the columns of interest.. 
+
+# TIP: draw what you want to achieve on a paper first. Then apply code.
+
+# See if you can do this on your own first.. Then check vs my solution:
+
+nam <- c()
+for (j in 1:(ncolrtn)) {
+for (i in 1:(ncolrtn)) {
+  nam[(i + (j-1)*(ncolrtn))] <- paste(xx[[j]][1], xx[[i]][1], sep="_")
+}
+}
+
+colnames(DCC.TV.Cor) <- nam
+
+# So to plot all the time-varying correlations wrt SBK:
+ # First append the date column that has (again) been removed...
+DCC.TV.Cor <- 
+    data.frame( cbind( date = index(ReturnSeries), DCC.TV.Cor)) %>% # Add date column which dropped away...
+    mutate(date = as.Date(date)) %>%  tbl_df() 
+
+DCC.TV.Cor <- DCC.TV.Cor %>% gather(Pairs, Rho, -date)
+
+DCC.TV.Cor
+
+}
+
+# Let's see if our function works! Excitement!
+Rhot <- 
+  renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = Rhot)
+
+head(Rhot %>% arrange(date))
+
+str(Rhot)
+
+dcc_JSE <- ggplot(Rhot %>% filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
+    geom_line(aes(x = date, y = Rho, colour = Pairs)) + 
+    
+    annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
+    ymin = -Inf, ymax = Inf, fill = "red", alpha = 0.4)+
+    annotate("rect", xmin = as.Date("2020-03-15"), xmax = as.Date("2022-06-20"),
+    ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.4)+
+    
+    theme_fmx()+
+    ggtitle("Dynamic Conditional Correlations: JSE")
+
+finplot(dcc_JSE)
+
+```
 
