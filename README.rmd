@@ -47,8 +47,7 @@ JSE <- local_indices %>%
 joinedDF <- left_join(SP, JSE, by = 'date')
 
 
-df <- joinedDF
-names <- c("S&P 500", "Rand Returns", "JSE Top 40")
+
 
 
 
@@ -140,27 +139,31 @@ install.packages("mgarchBEKK")
 library(mgarchBEKK)
 
 garch_df <- joinedDF %>% 
-    select(c(SP500, JSE40, Rand_Returns)) 
-    
+    select(c(SP500, JSE40, Rand_Returns)) %>% 
+    mutate(SP = SP500 * 100,
+           JSE = JSE40 * 100,
+           Rand = Rand_Returns * 100) %>% 
+    select(c(SP, JSE, Rand))
 
-estimated <- mgarchBEKK::BEKK(garch_df, params = c(1, 1, 1, 1, 1, 1,1,1,1,1,1), method = "Nelder-Mead")
+garch_matrix <- as.matrix(garch_df)
 
-## Simulate series:
-simulated <- simulateBEKK(2, 1000, c(1,1))
-## Prepare the matrix:
-simulated <- do.call(cbind, simulated$eps)
-## Estimate with default arguments:
-estimated <- BEKK(simulated)
+estimated <- mgarchBEKK::BEKK(garch_matrix)
 estimated$est.params
-diagnoseBEKK(estimated)
+
+
+
+
+
+
+
 ```
 
-
-
+#Other GARCH models
+I will now fit various univariate GARCH models to determine the best specification.
 ```{r}
-install.packages("MTS")
-library(MTS)
 
-x = BEKK11(garch_df)
+
 ```
+
+
 
