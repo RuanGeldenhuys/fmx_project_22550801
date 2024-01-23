@@ -190,10 +190,9 @@ uniGarchFitter <- function(data){
 
 garch_df <- joinedDF %>% 
     select(c(SP500, JSE40, Rand_Returns)) %>% 
-    mutate(SP = SP500 * 100,
-           JSE = JSE40 * 100,
-           Rand = Rand_Returns * 100) %>% 
-    select(c(SP, JSE, Rand))
+    rename(SP = SP500,
+           JSE = JSE40,
+           Rand = Rand_Returns) 
 
 uGarch_tables <- uniGarchFitter(garch_df)
 
@@ -356,19 +355,16 @@ finplot(gog_JSE_gjr)
 
 ### BEKK-GARCH
 
-Lastly I fit a BEKK-GARCH model to estimate the spillover effects between the 3 return series.
+Lastly I fit a BEKK-GARCH model to estimate the spillover effects between the 3 return series. Their estimates are given in the tables that follow.
 
 ```{r, warning=FALSE, results='hide'}
 garch_df <- joinedDF %>% 
     select(c(SP500, JSE40, Rand_Returns)) %>% 
-    mutate(SP = SP500 * 100,
-           JSE = JSE40 * 100,
-           Rand = Rand_Returns * 100) %>% 
-    select(c(SP, JSE, Rand))
+    rename(SP = SP500,
+           JSE = JSE40,
+           Rand = Rand_Returns) 
 
 garch_matrix <- as.matrix(garch_df)
-
-
 estimated <- mgarchBEKK::BEKK(garch_matrix)
 
 ```
@@ -381,8 +377,6 @@ BEKK_se <- estimated$asy.se.coef
 names(BEKK_se) <- c("Constants' standard errors", "ARCH standard errors", 
                     "GARCH standard errors")
 
-BEKK_estimates
-BEKK_se
 
 matrix_rename <- function(matrix, headers){
     colnames(matrix) <- headers
@@ -396,13 +390,21 @@ renamed_BEKK_se <- lapply(BEKK_se, matrix_rename,
                           headers = c("SP", "JSE", "Rand"))
 
 
-k_constants <- kable(renamed_BEKK_estimates$Constants,
-                     caption = 'Constants')
-k_constants_se <- kable(renamed_BEKK_se$`Constants' standard errors`,
-                        caption = "Constants' standard errors")
+kable(renamed_BEKK_estimates$Constants,
+      caption = 'Constants')
+kable(renamed_BEKK_se$`Constants' standard errors`,
+      caption = "Constants' standard errors")
 
-cat('<div style="display: inline-block; width: 45%;">', k_constants, '</div>')
-cat('<div style="display: inline-block; width: 45%; margin-left: 10px;">', k_constants_se, '</div>')
+kable(renamed_BEKK_estimates$`ARCH estimates`,
+      caption = "ARCH Estimates")
+kable(renamed_BEKK_se$`ARCH standard errors`,
+      caption = "ARCH standard errors")
+
+kable(renamed_BEKK_estimates$`GARCH estimates`,
+      caption = "GARCH Estimates")
+kable(renamed_BEKK_se$`GARCH standard errors`,
+      caption = "GARCH standard errors")
+
 
 
 

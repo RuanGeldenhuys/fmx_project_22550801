@@ -13,8 +13,8 @@ gc() # garbage collection - It can be useful to call gc after a large object has
 ```
 
     ##          used (Mb) gc trigger (Mb) max used (Mb)
-    ## Ncells 467774 25.0    1006305 53.8   660382 35.3
-    ## Vcells 867371  6.7    8388608 64.0  1770599 13.6
+    ## Ncells 467775 25.0    1006308 53.8   660382 35.3
+    ## Vcells 867393  6.7    8388608 64.0  1770599 13.6
 
 ``` r
 library(tidyverse)
@@ -720,10 +720,9 @@ uniGarchFitter <- function(data){
 
 garch_df <- joinedDF %>% 
     select(c(SP500, JSE40, Rand_Returns)) %>% 
-    mutate(SP = SP500 * 100,
-           JSE = JSE40 * 100,
-           Rand = Rand_Returns * 100) %>% 
-    select(c(SP, JSE, Rand))
+    rename(SP = SP500,
+           JSE = JSE40,
+           Rand = Rand_Returns) 
 
 uGarch_tables <- uniGarchFitter(garch_df)
 
@@ -759,16 +758,16 @@ HannanQuinn
 sGARCH
 </td>
 <td style="text-align:right;">
-5.666573
+-3.543768
 </td>
 <td style="text-align:right;">
-5.730815
+-3.479525
 </td>
 <td style="text-align:right;">
-5.665967
+-3.544373
 </td>
 <td style="text-align:right;">
-5.692329
+-3.518012
 </td>
 </tr>
 <tr>
@@ -776,16 +775,16 @@ sGARCH
 gjrGARCH
 </td>
 <td style="text-align:right;">
-5.611453
+-3.598887
 </td>
 <td style="text-align:right;">
-5.688544
+-3.521796
 </td>
 <td style="text-align:right;">
-5.610585
+-3.599755
 </td>
 <td style="text-align:right;">
-5.642361
+-3.567979
 </td>
 </tr>
 <tr>
@@ -793,16 +792,16 @@ gjrGARCH
 apARCH
 </td>
 <td style="text-align:right;">
-5.618397
+-3.591944
 </td>
 <td style="text-align:right;">
-5.708336
+-3.502004
 </td>
 <td style="text-align:right;">
-5.617220
+-3.593120
 </td>
 <td style="text-align:right;">
-5.654455
+-3.555885
 </td>
 </tr>
 </tbody>
@@ -841,16 +840,16 @@ HannanQuinn
 sGARCH
 </td>
 <td style="text-align:right;">
-6.013685
+-3.196656
 </td>
 <td style="text-align:right;">
-6.077927
+-3.132413
 </td>
 <td style="text-align:right;">
-6.013079
+-3.197262
 </td>
 <td style="text-align:right;">
-6.039441
+-3.170900
 </td>
 </tr>
 <tr>
@@ -858,16 +857,16 @@ sGARCH
 gjrGARCH
 </td>
 <td style="text-align:right;">
-5.951093
+-3.259247
 </td>
 <td style="text-align:right;">
-6.028184
+-3.182156
 </td>
 <td style="text-align:right;">
-5.950225
+-3.260116
 </td>
 <td style="text-align:right;">
-5.982000
+-3.228340
 </td>
 </tr>
 <tr>
@@ -875,16 +874,16 @@ gjrGARCH
 apARCH
 </td>
 <td style="text-align:right;">
-5.956980
+-3.253361
 </td>
 <td style="text-align:right;">
-6.046919
+-3.163421
 </td>
 <td style="text-align:right;">
-5.955803
+-3.254537
 </td>
 <td style="text-align:right;">
-5.993038
+-3.217302
 </td>
 </tr>
 </tbody>
@@ -923,16 +922,16 @@ HannanQuinn
 sGARCH
 </td>
 <td style="text-align:right;">
-6.051999
+-3.158341
 </td>
 <td style="text-align:right;">
-6.116242
+-3.094099
 </td>
 <td style="text-align:right;">
-6.051393
+-3.158947
 </td>
 <td style="text-align:right;">
-6.077755
+-3.132585
 </td>
 </tr>
 <tr>
@@ -940,16 +939,16 @@ sGARCH
 gjrGARCH
 </td>
 <td style="text-align:right;">
-6.044490
+-3.165850
 </td>
 <td style="text-align:right;">
-6.121581
+-3.088759
 </td>
 <td style="text-align:right;">
-6.043622
+-3.166718
 </td>
 <td style="text-align:right;">
-6.075398
+-3.134943
 </td>
 </tr>
 <tr>
@@ -957,16 +956,16 @@ gjrGARCH
 apARCH
 </td>
 <td style="text-align:right;">
-6.005175
+-3.183600
 </td>
 <td style="text-align:right;">
-6.095115
+-3.093660
 </td>
 <td style="text-align:right;">
-6.003999
+-3.184776
 </td>
 <td style="text-align:right;">
-6.041234
+-3.147541
 </td>
 </tr>
 </tbody>
@@ -1231,19 +1230,17 @@ finplot(gog_JSE_gjr)
 ### BEKK-GARCH
 
 Lastly I fit a BEKK-GARCH model to estimate the spillover effects
-between the 3 return series.
+between the 3 return series. Their estimates are given in the tables
+that follow.
 
 ``` r
 garch_df <- joinedDF %>% 
     select(c(SP500, JSE40, Rand_Returns)) %>% 
-    mutate(SP = SP500 * 100,
-           JSE = JSE40 * 100,
-           Rand = Rand_Returns * 100) %>% 
-    select(c(SP, JSE, Rand))
+    rename(SP = SP500,
+           JSE = JSE40,
+           Rand = Rand_Returns) 
 
 garch_matrix <- as.matrix(garch_df)
-
-
 estimated <- mgarchBEKK::BEKK(garch_matrix)
 ```
 
@@ -1255,38 +1252,7 @@ BEKK_se <- estimated$asy.se.coef
 names(BEKK_se) <- c("Constants' standard errors", "ARCH standard errors", 
                     "GARCH standard errors")
 
-BEKK_estimates
-```
 
-$Constants \[,1\] \[,2\] \[,3\] \[1,\] 0.6650514 -0.7573048 2.33085802
-\[2,\] 0.0000000 1.3220500 -2.23007857 \[3,\] 0.0000000 0.0000000
-0.04540093
-
-$`ARCH estimates` \[,1\] \[,2\] \[,3\] \[1,\] 0.53607600 0.4747793
-0.4511420 \[2,\] -0.02733169 -0.2254145 -0.1677014 \[3,\] -0.07922857
-0.1554714 0.1483722
-
-$`GARCH estimates` \[,1\] \[,2\] \[,3\] \[1,\] 0.52019209 1.1721377
-1.0643220 \[2,\] 0.02598961 -0.7976212 -0.4348628 \[3,\] 0.40528022
-0.2632717 -0.2119068
-
-``` r
-BEKK_se
-```
-
-$`Constants' standard errors` \[,1\] \[,2\] \[,3\] \[1,\] 2.323466
-2.263693 3.541815 \[2,\] 0.000000 2.620605 3.489223 \[3,\] 0.000000
-0.000000 1.979644
-
-$`ARCH standard errors` \[,1\] \[,2\] \[,3\] \[1,\] 0.1867899 0.3023454
-0.3390503 \[2,\] 0.1840774 0.2588054 0.2719637 \[3,\] 0.1266753
-0.1045829 0.1780824
-
-$`GARCH standard errors` \[,1\] \[,2\] \[,3\] \[1,\] 0.3183889 0.2233751
-0.3439757 \[2,\] 0.3585999 0.2079060 0.7804449 \[3,\] 0.5018321
-0.2043701 1.3113928
-
-``` r
 matrix_rename <- function(matrix, headers){
     colnames(matrix) <- headers
     rownames(matrix) <- headers
@@ -1299,12 +1265,8 @@ renamed_BEKK_se <- lapply(BEKK_se, matrix_rename,
                           headers = c("SP", "JSE", "Rand"))
 
 
-k_constants <- kable(renamed_BEKK_estimates$Constants,
-                     caption = 'Constants')
-k_constants_se <- kable(renamed_BEKK_se$`Constants' standard errors`,
-                        caption = "Constants' standard errors")
-
-cat('<div style="display: inline-block; width: 45%;">', k_constants, '</div>')
+kable(renamed_BEKK_estimates$Constants,
+      caption = 'Constants')
 ```
 
 <table>
@@ -1332,13 +1294,13 @@ Rand
 SP
 </td>
 <td style="text-align:right;">
-0.6650514
+0.026254
 </td>
 <td style="text-align:right;">
--0.7573048
+-0.0018746
 </td>
 <td style="text-align:right;">
-2.3308580
+0.0230061
 </td>
 </tr>
 <tr>
@@ -1346,13 +1308,13 @@ SP
 JSE
 </td>
 <td style="text-align:right;">
-0.0000000
+0.000000
 </td>
 <td style="text-align:right;">
-1.3220500
+-0.0199667
 </td>
 <td style="text-align:right;">
--2.2300786
+0.0059176
 </td>
 </tr>
 <tr>
@@ -1360,20 +1322,21 @@ JSE
 Rand
 </td>
 <td style="text-align:right;">
-0.0000000
+0.000000
 </td>
 <td style="text-align:right;">
 0.0000000
 </td>
 <td style="text-align:right;">
-0.0454009
+0.0096157
 </td>
 </tr>
 </tbody>
 </table>
 
 ``` r
-cat('<div style="display: inline-block; width: 45%; margin-left: 10px;">', k_constants_se, '</div>')
+kable(renamed_BEKK_se$`Constants' standard errors`,
+      caption = "Constants' standard errors")
 ```
 
 <table>
@@ -1401,13 +1364,13 @@ Rand
 SP
 </td>
 <td style="text-align:right;">
-2.323466
+0.0141831
 </td>
 <td style="text-align:right;">
-2.263693
+0.0199682
 </td>
 <td style="text-align:right;">
-3.541815
+0.0151026
 </td>
 </tr>
 <tr>
@@ -1415,13 +1378,13 @@ SP
 JSE
 </td>
 <td style="text-align:right;">
-0.000000
+0.0000000
 </td>
 <td style="text-align:right;">
-2.620605
+0.0181005
 </td>
 <td style="text-align:right;">
-3.489223
+0.0180976
 </td>
 </tr>
 <tr>
@@ -1429,13 +1392,293 @@ JSE
 Rand
 </td>
 <td style="text-align:right;">
-0.000000
+0.0000000
 </td>
 <td style="text-align:right;">
-0.000000
+0.0000000
 </td>
 <td style="text-align:right;">
-1.979645
+0.0194804
+</td>
+</tr>
+</tbody>
+</table>
+
+``` r
+kable(renamed_BEKK_estimates$`ARCH estimates`,
+      caption = "ARCH Estimates")
+```
+
+<table>
+<caption>
+ARCH Estimates
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+SP
+</th>
+<th style="text-align:right;">
+JSE
+</th>
+<th style="text-align:right;">
+Rand
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+SP
+</td>
+<td style="text-align:right;">
+-0.3018640
+</td>
+<td style="text-align:right;">
+-0.7873819
+</td>
+<td style="text-align:right;">
+-0.7061864
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+JSE
+</td>
+<td style="text-align:right;">
+-0.2004800
+</td>
+<td style="text-align:right;">
+0.2938261
+</td>
+<td style="text-align:right;">
+0.2718669
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rand
+</td>
+<td style="text-align:right;">
+0.2090868
+</td>
+<td style="text-align:right;">
+0.2358559
+</td>
+<td style="text-align:right;">
+0.3999628
+</td>
+</tr>
+</tbody>
+</table>
+
+``` r
+kable(renamed_BEKK_se$`ARCH standard errors`,
+      caption = "ARCH standard errors")
+```
+
+<table>
+<caption>
+ARCH standard errors
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+SP
+</th>
+<th style="text-align:right;">
+JSE
+</th>
+<th style="text-align:right;">
+Rand
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+SP
+</td>
+<td style="text-align:right;">
+0.1491465
+</td>
+<td style="text-align:right;">
+0.221398
+</td>
+<td style="text-align:right;">
+0.1667707
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+JSE
+</td>
+<td style="text-align:right;">
+0.1322717
+</td>
+<td style="text-align:right;">
+0.164168
+</td>
+<td style="text-align:right;">
+0.1682453
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rand
+</td>
+<td style="text-align:right;">
+0.0796129
+</td>
+<td style="text-align:right;">
+0.090122
+</td>
+<td style="text-align:right;">
+0.1037001
+</td>
+</tr>
+</tbody>
+</table>
+
+``` r
+kable(renamed_BEKK_estimates$`GARCH estimates`,
+      caption = "GARCH Estimates")
+```
+
+<table>
+<caption>
+GARCH Estimates
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+SP
+</th>
+<th style="text-align:right;">
+JSE
+</th>
+<th style="text-align:right;">
+Rand
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+SP
+</td>
+<td style="text-align:right;">
+-0.9035288
+</td>
+<td style="text-align:right;">
+-1.1637333
+</td>
+<td style="text-align:right;">
+-0.4982202
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+JSE
+</td>
+<td style="text-align:right;">
+0.4506538
+</td>
+<td style="text-align:right;">
+0.3223340
+</td>
+<td style="text-align:right;">
+-0.5124822
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rand
+</td>
+<td style="text-align:right;">
+0.0226566
+</td>
+<td style="text-align:right;">
+0.2109237
+</td>
+<td style="text-align:right;">
+0.5724857
+</td>
+</tr>
+</tbody>
+</table>
+
+``` r
+kable(renamed_BEKK_se$`GARCH standard errors`,
+      caption = "GARCH standard errors")
+```
+
+<table>
+<caption>
+GARCH standard errors
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+SP
+</th>
+<th style="text-align:right;">
+JSE
+</th>
+<th style="text-align:right;">
+Rand
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+SP
+</td>
+<td style="text-align:right;">
+0.2622794
+</td>
+<td style="text-align:right;">
+0.2488395
+</td>
+<td style="text-align:right;">
+0.5807987
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+JSE
+</td>
+<td style="text-align:right;">
+0.5115443
+</td>
+<td style="text-align:right;">
+0.3513101
+</td>
+<td style="text-align:right;">
+0.5449034
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Rand
+</td>
+<td style="text-align:right;">
+0.4239783
+</td>
+<td style="text-align:right;">
+0.3455879
+</td>
+<td style="text-align:right;">
+0.2362487
 </td>
 </tr>
 </tbody>
