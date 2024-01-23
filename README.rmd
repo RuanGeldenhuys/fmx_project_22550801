@@ -188,6 +188,12 @@ uniGarchFitter <- function(data){
     return(result_list)
 }
 
+garch_df <- joinedDF %>% 
+    select(c(SP500, JSE40, Rand_Returns)) %>% 
+    mutate(SP = SP500 * 100,
+           JSE = JSE40 * 100,
+           Rand = Rand_Returns * 100) %>% 
+    select(c(SP, JSE, Rand))
 
 uGarch_tables <- uniGarchFitter(garch_df)
 
