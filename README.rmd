@@ -25,6 +25,9 @@ library(knitr)
 library(MTS)
 library(zoo)
 library(ggthemes)
+library(rmgarch)
+library(rugarch)
+library(mgarchBEKK)
 
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 ```
@@ -137,10 +140,7 @@ kable(arch_results)
 
 #GARCH modelling
 ```{r}
-library(rmgarch)
-library(rugarch)
-install.packages("mgarchBEKK")
-library(mgarchBEKK)
+
 
 garch_df <- joinedDF %>% 
     select(c(SP500, JSE40, Rand_Returns)) %>% 
@@ -223,7 +223,7 @@ kableExtra::kable(uGarch_tables$Rand, caption = "Rand")
 
 ```
 
-For the S&P 500 and JSE Top 40 the gjrGARCH performs best. For the Rand it is the apARCH. I therefore select the gjrGARCH as my univariate specification.
+For the S&P 500 and JSE Top 40 the gjrGARCH performs best. For the Rand it is the apARCH. I therefore select the gjrGARCH as my univariate specification. This follows directly from the practicals.
 
 #Multivariate GARCH
 ```{r}
@@ -233,25 +233,10 @@ garch_xts <- joinedDF %>%
            Rand = Rand_Returns) %>% 
     tbl2xts::tbl_xts()
 
-uspec <- ugarchspec(variance.model = list(model = "gjrGARCH", 
-    garchOrder = c(1, 1)), mean.model = list(armaOrder = c(1, 
-    0), include.mean = TRUE), distribution.model = "norm")
-
-mspec <- multispec(replicate(ncol(garch_xts), uspec))
-
-spec.dcc = dccspec(mspec, dccOrder = c(1, 1), 
-    distribution = "mvnorm", lag.criterion = c("AIC", "HQ", "SC", 
-        "FPE")[1], model = c("DCC", "aDCC")[1])
-
-cl = makePSOCKcluster(10)
-
-mfit = multifit(mspec, garch_xts, cluster = cl)
-
-fit.dcc = dccfit(spec.dcc, data = garch_xts, solver = "solnp", 
-    cluster = cl, fit.control = list(eval.se = FALSE), fit = mfit)
-
-fit.dcc$rho.t
 ```
+
+
+## DCC
 
 ```{r}
 DCCpre <- dccPre(garch_xts, include.mean = T, p = 0)
@@ -264,42 +249,9 @@ Rhot <- DCC$rho.t
 ReturnSeries = garch_xts
 DCC.TV.Cor = Rhot
 
-renamingdcc <- function(ReturnSeries, DCC.TV.Cor) {
-  
-ncolrtn <- ncol(ReturnSeries)
-namesrtn <- colnames(ReturnSeries)
-paste(namesrtn, collapse = "_")
 
-nam <- c()
-xx <- mapply(rep, times = ncolrtn:1, x = namesrtn)
-# Now let's be creative in designing a nested for loop to save the names corresponding to the columns of interest.. 
 
-# TIP: draw what you want to achieve on a paper first. Then apply code.
 
-# See if you can do this on your own first.. Then check vs my solution:
-
-nam <- c()
-for (j in 1:(ncolrtn)) {
-for (i in 1:(ncolrtn)) {
-  nam[(i + (j-1)*(ncolrtn))] <- paste(xx[[j]][1], xx[[i]][1], sep="_")
-}
-}
-
-colnames(DCC.TV.Cor) <- nam
-
-# So to plot all the time-varying correlations wrt SBK:
- # First append the date column that has (again) been removed...
-DCC.TV.Cor <- 
-    data.frame( cbind( date = index(ReturnSeries), DCC.TV.Cor)) %>% # Add date column which dropped away...
-    mutate(date = as.Date(date)) %>%  tbl_df() 
-
-DCC.TV.Cor <- DCC.TV.Cor %>% gather(Pairs, Rho, -date)
-
-DCC.TV.Cor
-
-}
-
-# Let's see if our function works! Excitement!
 Rhot <- 
   renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = Rhot)
 
@@ -308,7 +260,7 @@ head(Rhot %>% arrange(date))
 str(Rhot)
 
 dcc_JSE <- ggplot(Rhot %>% filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
-    geom_line(aes(x = date, y = Rho, colour = Pairs)) + 
+    geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
     
     annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
     ymin = -Inf, ymax = Inf, fill = "red", alpha = 0.4)+
@@ -316,9 +268,102 @@ dcc_JSE <- ggplot(Rhot %>% filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) 
     ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.4)+
     
     theme_fmx()+
-    ggtitle("Dynamic Conditional Correlations: JSE")
+    ggtitle("Dynamic Conditional Correlations: JSE")+
+    scale_x_date(date_breaks = "4 years", date_labels = "%Y")
 
 finplot(dcc_JSE)
+
+```
+
+```{r}
+uspec <- ugarchspec(variance.model = list(model = "gjrGARCH", garchOrder = c(1, 1)), 
+                    mean.model = list(armaOrder = c(1, 0), include.mean = TRUE), 
+                    distribution.model = "sstd")
+
+multi_univ_garch_spec <- multispec(replicate(ncol(garch_xts), uspec))
+
+spec.dcc = dccspec(multi_univ_garch_spec, dccOrder = c(1, 1), distribution = "mvnorm", 
+                   lag.criterion = c("AIC", "HQ", "SC", "FPE")[1], 
+                   model = c("DCC", "aDCC")[1])
+
+cl = makePSOCKcluster(10)
+
+multf = multifit(multi_univ_garch_spec, garch_xts, cluster = cl)
+
+fit.dcc = dccfit(spec.dcc, data = garch_xts, solver = "solnp", 
+    cluster = cl, fit.control = list(eval.se = FALSE), fit = multf)
+
+RcovList <- rcov(fit.dcc)  # This is now a list of the monthly covariances of our DCC model series.
+covmat = matrix(RcovList, nrow(garch_xts), ncol(garch_xts) * ncol(garch_xts), 
+    byrow = TRUE)
+mc1 = MCHdiag(garch_xts, covmat)
+
+dcc.time.var.cor <- rcor(fit.dcc)
+
+dcc.time.var.cor <- aperm(dcc.time.var.cor, c(3, 2, 1))
+dim(dcc.time.var.cor) <- c(nrow(dcc.time.var.cor), ncol(dcc.time.var.cor)^2)
+
+dcc.time.var.cor <- renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = dcc.time.var.cor)
+
+dcc_JSE_gjr <- ggplot(dcc.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
+    geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
+    
+    annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
+    ymin = -Inf, ymax = Inf, fill = "red", alpha = 0.4)+
+    annotate("rect", xmin = as.Date("2020-03-15"), xmax = as.Date("2022-06-20"),
+    ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.4)+
+    
+    theme_fmx()+
+    ggtitle("Dynamic Conditional Correlations: JSE")+
+    scale_x_date(date_breaks = "4 years", date_labels = "%Y")
+
+finplot(dcc_JSE_gjr)
+
+
+```
+
+## Go-Garch
+
+```{r}
+spec.go <- gogarchspec(multi_univ_garch_spec, 
+                       distribution.model = 'mvnorm', # or manig.
+                       ica = 'fastica') # Note: we use the fastICA
+cl <- makePSOCKcluster(10)
+multf <- multifit(multi_univ_garch_spec, garch_xts, cluster = cl)
+
+fit.gogarch <- gogarchfit(spec.go, 
+                      data = garch_xts, 
+                      solver = 'hybrid', 
+                      cluster = cl, 
+                      gfun = 'tanh', 
+                      maxiter1 = 40000, 
+                      epsilon = 1e-08, 
+                      rseed = 100)
+
+print(fit.gogarch)
+
+# Extracting time-varying conditional correlations: You know the drill...
+gog.time.var.cor <- rcor(fit.gogarch)
+gog.time.var.cor <- aperm(gog.time.var.cor,c(3,2,1))
+dim(gog.time.var.cor) <- c(nrow(gog.time.var.cor), ncol(gog.time.var.cor)^2)
+# Finally:
+gog.time.var.cor <-
+renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = gog.time.var.cor)
+
+
+gog_JSE_gjr <- ggplot(gog.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
+    geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
+    
+    annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
+    ymin = -Inf, ymax = Inf, fill = "red", alpha = 0.4)+
+    annotate("rect", xmin = as.Date("2020-03-15"), xmax = as.Date("2022-06-20"),
+    ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.4)+
+    
+    theme_fmx()+
+    ggtitle("Dynamic Conditional Correlations: JSE")+
+    scale_x_date(date_breaks = "4 years", date_labels = "%Y")
+
+finplot(gog_JSE_gjr)
 
 ```
 
