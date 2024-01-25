@@ -233,8 +233,11 @@ table <- xtable(stats_df, caption = "Summary Statistics \\label{tab1}", digits =
 
 
 ## Methodology 
+I first perform stratification analysis on all three series to determine if periods of high or low volatility are shared accros the S\\&P, the JSE and the ZAR/USD exchange rate. I then fit multiple univariate GARCH models on all three variables to determine an appropriate specification for the multivariate models to come. I then fit three multivariate GARCH models, namely a DCC model, a Go-GARCH model, and a BEKK-GARCH model. Formal definitions and explanations of these models follow below.
 
 # Results
+
+## Stratification
 
 ## DCC
 
