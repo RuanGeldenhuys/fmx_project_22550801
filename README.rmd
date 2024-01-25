@@ -42,7 +42,7 @@ USDZAR <- readRDS("data/USDZAR.rds")
 
 SP <- global_indices %>% #This includes rand returns
     filter(Tickers == "SPXT") %>% 
-    select(c(date, Returns, Rand_Returns)) %>% 
+    select(c(date, Returns)) %>% 
     rename(SP500 = Returns)
 
 lcl_index <- "J200" # I create this variable so the choice of SA index can easily be changed
@@ -53,8 +53,24 @@ JSE <- local_indices %>%
 
 joinedDF <- left_join(SP, JSE, by = 'date')
 
+firstdate <- joinedDF %>%  slice(1) %>% pull(date)
+
+ZARUSD <- USDZAR %>% 
+    select(c(date, value)) %>% 
+    filter(date >= firstdate) %>% 
+    mutate(yearmonth = format(ymd(date), "%Y-%m")) %>% 
+    group_by(yearmonth) %>% 
+    mutate(ZARUSD = dplyr::last(value)/dplyr::first(value) - 1) %>% 
+    filter(date == dplyr::last(date)) %>% 
+    ungroup() %>% 
+    slice(-1) %>% 
+    select(c(date, ZARUSD))
+
+joinedDF <- left_join(ZARUSD, joinedDF, by = 'date') 
+joinedDF <- joinedDF[c(1,3,4,2)]
+
 #Plot the returns
-returns_plotter(joinedDF, c("S&P 500", "Rand Returns", "JSE Top 40"))
+returns_plotter(joinedDF, c("S&P 500", "JSE Top 40", "USD/ZAR"))
 
 
 ```
@@ -81,9 +97,9 @@ results_SP <- analyze_volatility_periods(joinedDF, "SP500", Idxs)
 kableExtra::kable(results_SP$HighVol, caption = "S&P 500")
 kableExtra::kable(results_SP$LowVol, caption = "S&P 500")
 
-results_rand <- analyze_volatility_periods(joinedDF, "Rand_Returns", Idxs)
-kableExtra::kable(results_rand$HighVol, caption = "Rand Returns")
-kableExtra::kable(results_rand$LowVol, caption = "Rand Returns")
+results_rand <- analyze_volatility_periods(joinedDF, "ZARUSD", Idxs)
+kableExtra::kable(results_rand$HighVol, caption = "ZAR/USD")
+kableExtra::kable(results_rand$LowVol, caption = "ZAR/USD")
 
 results_JSE <- analyze_volatility_periods(joinedDF, "JSE40", Idxs)
 kableExtra::kable(results_JSE$HighVol, caption = "JSE Top 40")
@@ -189,23 +205,23 @@ uniGarchFitter <- function(data){
 }
 
 garch_df <- joinedDF %>% 
-    select(c(SP500, JSE40, Rand_Returns)) %>% 
+    select(c(SP500, JSE40, ZARUSD)) %>% 
     rename(SP = SP500,
            JSE = JSE40,
-           Rand = Rand_Returns) 
+           ZARUSD = ZARUSD) 
 
 uGarch_tables <- uniGarchFitter(garch_df)
 
 kableExtra::kable(uGarch_tables$SP, caption = "S&P 500")
 kableExtra::kable(uGarch_tables$JSE, caption = "JSE Top 40")
-kableExtra::kable(uGarch_tables$Rand, caption = "Rand")
+kableExtra::kable(uGarch_tables$ZARUSD, caption = "ZAR/USD")
 
 
 
 
 ```
 
-For the S&P 500 and JSE Top 40 the gjrGARCH performs best. For the Rand it is the apARCH. I therefore select the gjrGARCH as my univariate specification. This follows directly from the practicals.
+For the S&P 500 and JSE Top 40 the gjrGARCH performs best. For the Rand it is the sGARCH. I therefore select the gjrGARCH as my univariate specification. This follows directly from the practicals.
 
 ## Multivariate GARCH
 
@@ -213,7 +229,7 @@ For the S&P 500 and JSE Top 40 the gjrGARCH performs best. For the Rand it is th
 garch_xts <- joinedDF %>% 
     rename(SP = SP500,
            JSE = JSE40,
-           Rand = Rand_Returns) %>% 
+           ZARUSD = ZARUSD) %>% 
     tbl2xts::tbl_xts()
 
 ```
@@ -239,9 +255,7 @@ DCC.TV.Cor = Rhot
 Rhot <- 
   renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = Rhot)
 
-head(Rhot %>% arrange(date))
 
-str(Rhot)
 
 dcc_JSE <- ggplot(Rhot %>% filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
     geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
@@ -359,10 +373,10 @@ Lastly I fit a BEKK-GARCH model to estimate the spillover effects between the 3 
 
 ```{r, warning=FALSE, results='hide'}
 garch_df <- joinedDF %>% 
-    select(c(SP500, JSE40, Rand_Returns)) %>% 
+    select(c(SP500, JSE40, ZARUSD)) %>% 
     rename(SP = SP500,
            JSE = JSE40,
-           Rand = Rand_Returns) 
+           ZARUSD = ZARUSD) 
 
 garch_matrix <- as.matrix(garch_df)
 estimated <- mgarchBEKK::BEKK(garch_matrix)

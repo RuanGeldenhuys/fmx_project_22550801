@@ -13,8 +13,8 @@ gc() # garbage collection - It can be useful to call gc after a large object has
 ```
 
     ##          used (Mb) gc trigger (Mb) max used (Mb)
-    ## Ncells 467775 25.0    1006308 53.8   660382 35.3
-    ## Vcells 867393  6.7    8388608 64.0  1770599 13.6
+    ## Ncells 467785 25.0    1006337 53.8   660382 35.3
+    ## Vcells 867489  6.7    8388608 64.0  1770696 13.6
 
 ``` r
 library(tidyverse)
@@ -102,7 +102,7 @@ USDZAR <- readRDS("data/USDZAR.rds")
 
 SP <- global_indices %>% #This includes rand returns
     filter(Tickers == "SPXT") %>% 
-    select(c(date, Returns, Rand_Returns)) %>% 
+    select(c(date, Returns)) %>% 
     rename(SP500 = Returns)
 
 lcl_index <- "J200" # I create this variable so the choice of SA index can easily be changed
@@ -113,8 +113,24 @@ JSE <- local_indices %>%
 
 joinedDF <- left_join(SP, JSE, by = 'date')
 
+firstdate <- joinedDF %>%  slice(1) %>% pull(date)
+
+ZARUSD <- USDZAR %>% 
+    select(c(date, value)) %>% 
+    filter(date >= firstdate) %>% 
+    mutate(yearmonth = format(ymd(date), "%Y-%m")) %>% 
+    group_by(yearmonth) %>% 
+    mutate(ZARUSD = dplyr::last(value)/dplyr::first(value) - 1) %>% 
+    filter(date == dplyr::last(date)) %>% 
+    ungroup() %>% 
+    slice(-1) %>% 
+    select(c(date, ZARUSD))
+
+joinedDF <- left_join(ZARUSD, joinedDF, by = 'date') 
+joinedDF <- joinedDF[c(1,3,4,2)]
+
 #Plot the returns
-returns_plotter(joinedDF, c("S&P 500", "Rand Returns", "JSE Top 40"))
+returns_plotter(joinedDF, c("S&P 500", "JSE Top 40", "USD/ZAR"))
 ```
 
     ## $`S&P 500`
@@ -122,12 +138,12 @@ returns_plotter(joinedDF, c("S&P 500", "Rand Returns", "JSE Top 40"))
 ![](README_files/figure-markdown_github/unnamed-chunk-2-1.png)
 
     ## 
-    ## $`Rand Returns`
+    ## $`JSE Top 40`
 
 ![](README_files/figure-markdown_github/unnamed-chunk-2-2.png)
 
     ## 
-    ## $`JSE Top 40`
+    ## $`USD/ZAR`
 
 ![](README_files/figure-markdown_github/unnamed-chunk-2-3.png)
 
@@ -185,33 +201,33 @@ Ratio
 JSE40
 </td>
 <td style="text-align:right;">
-0.2299355
+0.2299961
 </td>
 <td style="text-align:right;">
-0.1703735
+0.1700823
 </td>
 <td style="text-align:left;">
 High_Vol SP500
 </td>
 <td style="text-align:right;">
-1.349596
+1.352263
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-Rand_Returns
+ZARUSD
 </td>
 <td style="text-align:right;">
-0.2156021
+0.1874059
 </td>
 <td style="text-align:right;">
-0.1716540
+0.1595920
 </td>
 <td style="text-align:left;">
 High_Vol SP500
 </td>
 <td style="text-align:right;">
-1.256027
+1.174282
 </td>
 </tr>
 </tbody>
@@ -247,19 +263,19 @@ Ratio
 <tbody>
 <tr>
 <td style="text-align:left;">
-Rand_Returns
+ZARUSD
 </td>
 <td style="text-align:right;">
-0.1527510
+0.1643987
 </td>
 <td style="text-align:right;">
-0.1716540
+0.1595920
 </td>
 <td style="text-align:left;">
 Low_Vol SP500
 </td>
 <td style="text-align:right;">
-0.8898772
+1.0301190
 </td>
 </tr>
 <tr>
@@ -270,26 +286,26 @@ JSE40
 0.1385775
 </td>
 <td style="text-align:right;">
-0.1703735
+0.1700823
 </td>
 <td style="text-align:left;">
 Low_Vol SP500
 </td>
 <td style="text-align:right;">
-0.8133743
+0.8147671
 </td>
 </tr>
 </tbody>
 </table>
 
 ``` r
-results_rand <- analyze_volatility_periods(joinedDF, "Rand_Returns", Idxs)
-kableExtra::kable(results_rand$HighVol, caption = "Rand Returns")
+results_rand <- analyze_volatility_periods(joinedDF, "ZARUSD", Idxs)
+kableExtra::kable(results_rand$HighVol, caption = "ZAR/USD")
 ```
 
 <table>
 <caption>
-Rand Returns
+ZAR/USD
 </caption>
 <thead>
 <tr>
@@ -316,16 +332,16 @@ Ratio
 JSE40
 </td>
 <td style="text-align:right;">
-0.2120507
+0.1761936
 </td>
 <td style="text-align:right;">
-0.1703735
+0.1700823
 </td>
 <td style="text-align:left;">
-High_Vol Rand_Returns
+High_Vol ZARUSD
 </td>
 <td style="text-align:right;">
-1.244622
+1.035931
 </td>
 </tr>
 <tr>
@@ -333,28 +349,28 @@ High_Vol Rand_Returns
 SP500
 </td>
 <td style="text-align:right;">
-0.1938070
+0.1596056
 </td>
 <td style="text-align:right;">
-0.1492991
+0.1493840
 </td>
 <td style="text-align:left;">
-High_Vol Rand_Returns
+High_Vol ZARUSD
 </td>
 <td style="text-align:right;">
-1.298112
+1.068425
 </td>
 </tr>
 </tbody>
 </table>
 
 ``` r
-kableExtra::kable(results_rand$LowVol, caption = "Rand Returns")
+kableExtra::kable(results_rand$LowVol, caption = "ZAR/USD")
 ```
 
 <table>
 <caption>
-Rand Returns
+ZAR/USD
 </caption>
 <thead>
 <tr>
@@ -381,16 +397,16 @@ Ratio
 JSE40
 </td>
 <td style="text-align:right;">
-0.1301606
+0.1337340
 </td>
 <td style="text-align:right;">
-0.1703735
+0.1700823
 </td>
 <td style="text-align:left;">
-Low_Vol Rand_Returns
+Low_Vol ZARUSD
 </td>
 <td style="text-align:right;">
-0.7639721
+0.7862896
 </td>
 </tr>
 <tr>
@@ -398,16 +414,16 @@ Low_Vol Rand_Returns
 SP500
 </td>
 <td style="text-align:right;">
-0.1263740
+0.1313495
 </td>
 <td style="text-align:right;">
-0.1492991
+0.1493840
 </td>
 <td style="text-align:left;">
-Low_Vol Rand_Returns
+Low_Vol ZARUSD
 </td>
 <td style="text-align:right;">
-0.8464484
+0.8792745
 </td>
 </tr>
 </tbody>
@@ -444,36 +460,36 @@ Ratio
 <tbody>
 <tr>
 <td style="text-align:left;">
-Rand_Returns
+SP500
 </td>
 <td style="text-align:right;">
-0.2071305
+0.2047917
 </td>
 <td style="text-align:right;">
-0.1716540
+0.149384
 </td>
 <td style="text-align:left;">
 High_Vol JSE40
 </td>
 <td style="text-align:right;">
-1.206674
+1.370908
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-SP500
+ZARUSD
 </td>
 <td style="text-align:right;">
-0.2047659
+0.1859849
 </td>
 <td style="text-align:right;">
-0.1492991
+0.159592
 </td>
 <td style="text-align:left;">
 High_Vol JSE40
 </td>
 <td style="text-align:right;">
-1.371514
+1.165378
 </td>
 </tr>
 </tbody>
@@ -509,19 +525,19 @@ Ratio
 <tbody>
 <tr>
 <td style="text-align:left;">
-Rand_Returns
+ZARUSD
 </td>
 <td style="text-align:right;">
-0.1246018
+0.1305594
 </td>
 <td style="text-align:right;">
-0.1716540
+0.159592
 </td>
 <td style="text-align:left;">
 Low_Vol JSE40
 </td>
 <td style="text-align:right;">
-0.7258890
+0.8180826
 </td>
 </tr>
 <tr>
@@ -532,13 +548,13 @@ SP500
 0.1042043
 </td>
 <td style="text-align:right;">
-0.1492991
+0.149384
 </td>
 <td style="text-align:left;">
 Low_Vol JSE40
 </td>
 <td style="text-align:right;">
-0.6979563
+0.6975598
 </td>
 </tr>
 </tbody>
@@ -613,24 +629,10 @@ LagOrder
 SP500
 </td>
 <td style="text-align:right;">
-66.35250
+66.52538
 </td>
 <td style="text-align:right;">
-0.000000
-</td>
-<td style="text-align:right;">
-12
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Rand_Returns
-</td>
-<td style="text-align:right;">
-27.65200
-</td>
-<td style="text-align:right;">
-0.003659
+0.0000000
 </td>
 <td style="text-align:right;">
 12
@@ -641,10 +643,24 @@ Rand_Returns
 JSE40
 </td>
 <td style="text-align:right;">
-65.24189
+65.74928
 </td>
 <td style="text-align:right;">
-0.000000
+0.0000000
+</td>
+<td style="text-align:right;">
+12
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ZARUSD
+</td>
+<td style="text-align:right;">
+16.09037
+</td>
+<td style="text-align:right;">
+0.1378091
 </td>
 <td style="text-align:right;">
 12
@@ -658,12 +674,12 @@ arch_results_march <- MarchTest(ret_df)
 ```
 
     ## Q(m) of squared series(LM test):  
-    ## Test statistic:  85.86316  p-value:  3.530509e-14 
+    ## Test statistic:  81.32437  p-value:  2.760014e-13 
     ## Rank-based Test:  
-    ## Test statistic:  84.14425  p-value:  7.693846e-14 
+    ## Test statistic:  92.52711  p-value:  1.665335e-15 
     ## Q_k(m) of squared series:  
-    ## Test statistic:  150.1212  p-value:  7.265193e-05 
-    ## Robust Test(5%) :  107.2135  p-value:  0.1041489
+    ## Test statistic:  165.2131  p-value:  2.329855e-06 
+    ## Robust Test(5%) :  144.048  p-value:  0.000259541
 
 #GARCH modelling
 
@@ -719,10 +735,10 @@ uniGarchFitter <- function(data){
 }
 
 garch_df <- joinedDF %>% 
-    select(c(SP500, JSE40, Rand_Returns)) %>% 
+    select(c(SP500, JSE40, ZARUSD)) %>% 
     rename(SP = SP500,
            JSE = JSE40,
-           Rand = Rand_Returns) 
+           ZARUSD = ZARUSD) 
 
 uGarch_tables <- uniGarchFitter(garch_df)
 
@@ -758,16 +774,16 @@ HannanQuinn
 sGARCH
 </td>
 <td style="text-align:right;">
--3.543768
+-3.543804
 </td>
 <td style="text-align:right;">
--3.479525
+-3.479397
 </td>
 <td style="text-align:right;">
--3.544373
+-3.544414
 </td>
 <td style="text-align:right;">
--3.518012
+-3.517979
 </td>
 </tr>
 <tr>
@@ -775,16 +791,16 @@ sGARCH
 gjrGARCH
 </td>
 <td style="text-align:right;">
--3.598887
+-3.598589
 </td>
 <td style="text-align:right;">
--3.521796
+-3.521301
 </td>
 <td style="text-align:right;">
--3.599755
+-3.599464
 </td>
 <td style="text-align:right;">
--3.567979
+-3.567599
 </td>
 </tr>
 <tr>
@@ -792,16 +808,16 @@ gjrGARCH
 apARCH
 </td>
 <td style="text-align:right;">
--3.591944
+-3.591571
 </td>
 <td style="text-align:right;">
--3.502004
+-3.501401
 </td>
 <td style="text-align:right;">
--3.593120
+-3.592755
 </td>
 <td style="text-align:right;">
--3.555885
+-3.555416
 </td>
 </tr>
 </tbody>
@@ -840,16 +856,16 @@ HannanQuinn
 sGARCH
 </td>
 <td style="text-align:right;">
--3.196656
+-3.200662
 </td>
 <td style="text-align:right;">
--3.132413
+-3.136255
 </td>
 <td style="text-align:right;">
--3.197262
+-3.201272
 </td>
 <td style="text-align:right;">
--3.170900
+-3.174837
 </td>
 </tr>
 <tr>
@@ -857,16 +873,16 @@ sGARCH
 gjrGARCH
 </td>
 <td style="text-align:right;">
--3.259247
+-3.262467
 </td>
 <td style="text-align:right;">
--3.182156
+-3.185178
 </td>
 <td style="text-align:right;">
--3.260116
+-3.263341
 </td>
 <td style="text-align:right;">
--3.228340
+-3.231476
 </td>
 </tr>
 <tr>
@@ -874,28 +890,28 @@ gjrGARCH
 apARCH
 </td>
 <td style="text-align:right;">
--3.253361
+-3.256765
 </td>
 <td style="text-align:right;">
--3.163421
+-3.166595
 </td>
 <td style="text-align:right;">
--3.254537
+-3.257950
 </td>
 <td style="text-align:right;">
--3.217302
+-3.220610
 </td>
 </tr>
 </tbody>
 </table>
 
 ``` r
-kableExtra::kable(uGarch_tables$Rand, caption = "Rand")
+kableExtra::kable(uGarch_tables$ZARUSD, caption = "ZAR/USD")
 ```
 
 <table>
 <caption>
-Rand
+ZAR/USD
 </caption>
 <thead>
 <tr>
@@ -922,16 +938,16 @@ HannanQuinn
 sGARCH
 </td>
 <td style="text-align:right;">
--3.158341
+-3.257713
 </td>
 <td style="text-align:right;">
--3.094099
+-3.193306
 </td>
 <td style="text-align:right;">
--3.158947
+-3.258323
 </td>
 <td style="text-align:right;">
--3.132585
+-3.231888
 </td>
 </tr>
 <tr>
@@ -939,16 +955,16 @@ sGARCH
 gjrGARCH
 </td>
 <td style="text-align:right;">
--3.165850
+-3.250676
 </td>
 <td style="text-align:right;">
--3.088759
+-3.173387
 </td>
 <td style="text-align:right;">
--3.166718
+-3.251550
 </td>
 <td style="text-align:right;">
--3.134943
+-3.219686
 </td>
 </tr>
 <tr>
@@ -956,23 +972,23 @@ gjrGARCH
 apARCH
 </td>
 <td style="text-align:right;">
--3.183600
+-3.196725
 </td>
 <td style="text-align:right;">
--3.093660
+-3.106555
 </td>
 <td style="text-align:right;">
--3.184776
+-3.197910
 </td>
 <td style="text-align:right;">
--3.147541
+-3.160570
 </td>
 </tr>
 </tbody>
 </table>
 
 For the S&P 500 and JSE Top 40 the gjrGARCH performs best. For the Rand
-it is the apARCH. I therefore select the gjrGARCH as my univariate
+it is the sGARCH. I therefore select the gjrGARCH as my univariate
 specification. This follows directly from the practicals.
 
 ## Multivariate GARCH
@@ -981,7 +997,7 @@ specification. This follows directly from the practicals.
 garch_xts <- joinedDF %>% 
     rename(SP = SP500,
            JSE = JSE40,
-           Rand = Rand_Returns) %>% 
+           ZARUSD = ZARUSD) %>% 
     tbl2xts::tbl_xts()
 ```
 
@@ -994,19 +1010,19 @@ univariate gjrGARCH specification. The results are practically the same.
 DCCpre <- dccPre(garch_xts, include.mean = T, p = 0)
 ```
 
-    ## Sample mean of the returns:  0.006516667 0.01051822 0.01181206 
+    ## Sample mean of the returns:  0.006646004 0.01205957 0.0040101 
     ## Component:  1 
-    ## Estimates:  0.000103 0.236741 0.729124 
-    ## se.coef  :  6.7e-05 0.067086 0.073942 
-    ## t-value  :  1.548631 3.528925 9.860745 
+    ## Estimates:  0.000103 0.236377 0.729762 
+    ## se.coef  :  6.6e-05 0.067012 0.073488 
+    ## t-value  :  1.553856 3.527388 9.93041 
     ## Component:  2 
-    ## Estimates:  0.000355 0.102784 0.760644 
-    ## se.coef  :  0.000249 0.078853 0.151865 
-    ## t-value  :  1.428891 1.303482 5.00869 
+    ## Estimates:  0.000268 0.201884 0.701823 
+    ## se.coef  :  0.000177 0.089231 0.125333 
+    ## t-value  :  1.515427 2.262495 5.599679 
     ## Component:  3 
-    ## Estimates:  0.00026 0.199472 0.707175 
-    ## se.coef  :  0.00017 0.088052 0.121476 
-    ## t-value  :  1.530618 2.265381 5.821511
+    ## Estimates:  0.001245 0.373383 0.135037 
+    ## se.coef  :  0.000303 0.129176 0.135575 
+    ## t-value  :  4.109286 2.890494 0.996026
 
 ``` r
 StdRes <- DCCpre$sresi
@@ -1014,9 +1030,9 @@ StdRes <- DCCpre$sresi
 DCC <- dccFit(StdRes, type="Engle")
 ```
 
-    ## Estimates:  0.8551849 0.04095877 20 
-    ## st.errors:  0.09290129 0.02618852 8.369476 
-    ## t-values:   9.205307 1.563997 2.389636
+    ## Estimates:  0.885281 0.03319359 20 
+    ## st.errors:  0.07263721 0.02059145 9.307685 
+    ## t-values:   12.18771 1.612008 2.148762
 
 ``` r
 Rhot <- DCC$rho.t
@@ -1035,29 +1051,6 @@ Rhot <-
     ## ℹ Please use `tibble::as_tibble()` instead.
     ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
     ## generated.
-
-``` r
-head(Rhot %>% arrange(date))
-```
-
-    ## # A tibble: 6 × 3
-    ##   date       Pairs       Rho
-    ##   <date>     <chr>     <dbl>
-    ## 1 2000-04-30 SP_SP     1    
-    ## 2 2000-04-30 SP_Rand   0.470
-    ## 3 2000-04-30 SP_JSE    0.589
-    ## 4 2000-04-30 Rand_SP   0.470
-    ## 5 2000-04-30 Rand_Rand 1    
-    ## 6 2000-04-30 Rand_JSE  0.414
-
-``` r
-str(Rhot)
-```
-
-    ## tibble [2,556 × 3] (S3: tbl_df/tbl/data.frame)
-    ##  $ date : Date[1:2556], format: "2000-04-30" "2000-05-31" ...
-    ##  $ Pairs: chr [1:2556] "SP_SP" "SP_SP" "SP_SP" "SP_SP" ...
-    ##  $ Rho  : num [1:2556] 1 1 1 1 1 1 1 1 1 1 ...
 
 ``` r
 dcc_JSE <- ggplot(Rhot %>% filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
@@ -1103,13 +1096,13 @@ mc1 = MCHdiag(garch_xts, covmat)
 
     ## Test results:  
     ## Q(m) of et: 
-    ## Test and p-value:  11.2619 0.3374808 
+    ## Test and p-value:  5.791687 0.8324506 
     ## Rank-based test: 
-    ## Test and p-value:  15.89436 0.1026967 
+    ## Test and p-value:  12.66139 0.2432247 
     ## Qk(m) of epsilon_t: 
-    ## Test and p-value:  74.19735 0.8857767 
+    ## Test and p-value:  100.1956 0.217031 
     ## Robust Qk(m):  
-    ## Test and p-value:  78.46597 0.8021065
+    ## Test and p-value:  76.38764 0.8462388
 
 ``` r
 dcc.time.var.cor <- rcor(fit.dcc)
@@ -1176,23 +1169,23 @@ print(fit.gogarch)
     ## Distribution : mvnorm
     ## ICA Method       : fastica
     ## No. Factors      : 3
-    ## No. Periods      : 284
-    ## Log-Likelihood   : 1529.42
+    ## No. Periods      : 283
+    ## Log-Likelihood   : 1507.03
     ## ------------------------------------
     ## 
     ## U (rotation matrix) : 
     ## 
-    ##         [,1]   [,2]  [,3]
-    ## [1,] -0.7109 -0.281 0.645
-    ## [2,]  0.0999  0.867 0.488
-    ## [3,]  0.6962 -0.411 0.588
+    ##          [,1]   [,2]   [,3]
+    ## [1,] -0.00845 -0.127 0.9919
+    ## [2,] -0.33702  0.934 0.1168
+    ## [3,]  0.94146  0.333 0.0507
     ## 
     ## A (mixing matrix) : 
     ## 
-    ##        [,1]     [,2]     [,3]
-    ## [1,] 0.0432  0.00777 -0.00653
-    ## [2,] 0.0220 -0.01288 -0.04328
-    ## [3,] 0.0219  0.03677 -0.02633
+    ##          [,1]   [,2]    [,3]
+    ## [1,]  0.01882 0.0131 -0.0380
+    ## [2,] -0.02098 0.0233 -0.0391
+    ## [3,] -0.00599 0.0358  0.0320
 
 ``` r
 # Extracting time-varying conditional correlations: You know the drill...
@@ -1235,10 +1228,10 @@ that follow.
 
 ``` r
 garch_df <- joinedDF %>% 
-    select(c(SP500, JSE40, Rand_Returns)) %>% 
+    select(c(SP500, JSE40, ZARUSD)) %>% 
     rename(SP = SP500,
            JSE = JSE40,
-           Rand = Rand_Returns) 
+           ZARUSD = ZARUSD) 
 
 garch_matrix <- as.matrix(garch_df)
 estimated <- mgarchBEKK::BEKK(garch_matrix)
@@ -1294,13 +1287,13 @@ Rand
 SP
 </td>
 <td style="text-align:right;">
-0.026254
+0.0380978
 </td>
 <td style="text-align:right;">
--0.0018746
+0.0182193
 </td>
 <td style="text-align:right;">
-0.0230061
+-0.0142889
 </td>
 </tr>
 <tr>
@@ -1308,13 +1301,13 @@ SP
 JSE
 </td>
 <td style="text-align:right;">
-0.000000
+0.0000000
 </td>
 <td style="text-align:right;">
--0.0199667
+0.0150211
 </td>
 <td style="text-align:right;">
-0.0059176
+-0.0091460
 </td>
 </tr>
 <tr>
@@ -1322,13 +1315,13 @@ JSE
 Rand
 </td>
 <td style="text-align:right;">
-0.000000
+0.0000000
 </td>
 <td style="text-align:right;">
 0.0000000
 </td>
 <td style="text-align:right;">
-0.0096157
+0.0391408
 </td>
 </tr>
 </tbody>
@@ -1364,13 +1357,13 @@ Rand
 SP
 </td>
 <td style="text-align:right;">
-0.0141831
+0.0062151
 </td>
 <td style="text-align:right;">
-0.0199682
+0.0149529
 </td>
 <td style="text-align:right;">
-0.0151026
+0.0049230
 </td>
 </tr>
 <tr>
@@ -1381,10 +1374,10 @@ JSE
 0.0000000
 </td>
 <td style="text-align:right;">
-0.0181005
+0.0200417
 </td>
 <td style="text-align:right;">
-0.0180976
+0.0174655
 </td>
 </tr>
 <tr>
@@ -1398,7 +1391,7 @@ Rand
 0.0000000
 </td>
 <td style="text-align:right;">
-0.0194804
+0.0070223
 </td>
 </tr>
 </tbody>
@@ -1434,13 +1427,13 @@ Rand
 SP
 </td>
 <td style="text-align:right;">
--0.3018640
+0.0539006
 </td>
 <td style="text-align:right;">
--0.7873819
+-0.3133579
 </td>
 <td style="text-align:right;">
--0.7061864
+-0.3343832
 </td>
 </tr>
 <tr>
@@ -1448,13 +1441,13 @@ SP
 JSE
 </td>
 <td style="text-align:right;">
--0.2004800
+-0.3058476
 </td>
 <td style="text-align:right;">
-0.2938261
+0.1427509
 </td>
 <td style="text-align:right;">
-0.2718669
+0.5941598
 </td>
 </tr>
 <tr>
@@ -1462,13 +1455,13 @@ JSE
 Rand
 </td>
 <td style="text-align:right;">
-0.2090868
+0.2485180
 </td>
 <td style="text-align:right;">
-0.2358559
+0.2343271
 </td>
 <td style="text-align:right;">
-0.3999628
+-0.0621894
 </td>
 </tr>
 </tbody>
@@ -1504,13 +1497,13 @@ Rand
 SP
 </td>
 <td style="text-align:right;">
-0.1491465
+0.1957541
 </td>
 <td style="text-align:right;">
-0.221398
+0.2961480
 </td>
 <td style="text-align:right;">
-0.1667707
+0.1862873
 </td>
 </tr>
 <tr>
@@ -1518,13 +1511,13 @@ SP
 JSE
 </td>
 <td style="text-align:right;">
-0.1322717
+0.1514115
 </td>
 <td style="text-align:right;">
-0.164168
+0.1914826
 </td>
 <td style="text-align:right;">
-0.1682453
+0.1497553
 </td>
 </tr>
 <tr>
@@ -1532,13 +1525,13 @@ JSE
 Rand
 </td>
 <td style="text-align:right;">
-0.0796129
+0.0894545
 </td>
 <td style="text-align:right;">
-0.090122
+0.1199156
 </td>
 <td style="text-align:right;">
-0.1037001
+0.1223480
 </td>
 </tr>
 </tbody>
@@ -1574,13 +1567,13 @@ Rand
 SP
 </td>
 <td style="text-align:right;">
--0.9035288
+-0.0013453
 </td>
 <td style="text-align:right;">
--1.1637333
+-0.0215581
 </td>
 <td style="text-align:right;">
--0.4982202
+-0.0150115
 </td>
 </tr>
 <tr>
@@ -1588,13 +1581,13 @@ SP
 JSE
 </td>
 <td style="text-align:right;">
-0.4506538
+0.0322619
 </td>
 <td style="text-align:right;">
-0.3223340
+0.0813841
 </td>
 <td style="text-align:right;">
--0.5124822
+-0.0049306
 </td>
 </tr>
 <tr>
@@ -1602,13 +1595,13 @@ JSE
 Rand
 </td>
 <td style="text-align:right;">
-0.0226566
+-0.2760136
 </td>
 <td style="text-align:right;">
-0.2109237
+-0.8576035
 </td>
 <td style="text-align:right;">
-0.5724857
+-0.0661716
 </td>
 </tr>
 </tbody>
@@ -1644,13 +1637,13 @@ Rand
 SP
 </td>
 <td style="text-align:right;">
-0.2622794
+0.1913787
 </td>
 <td style="text-align:right;">
-0.2488395
+0.5822370
 </td>
 <td style="text-align:right;">
-0.5807987
+0.0757566
 </td>
 </tr>
 <tr>
@@ -1658,13 +1651,13 @@ SP
 JSE
 </td>
 <td style="text-align:right;">
-0.5115443
+0.1296931
 </td>
 <td style="text-align:right;">
-0.3513101
+0.3297444
 </td>
 <td style="text-align:right;">
-0.5449034
+0.0646160
 </td>
 </tr>
 <tr>
@@ -1672,13 +1665,13 @@ JSE
 Rand
 </td>
 <td style="text-align:right;">
-0.4239783
+0.3255124
 </td>
 <td style="text-align:right;">
-0.3455879
+0.2673825
 </td>
 <td style="text-align:right;">
-0.2362487
+0.1847699
 </td>
 </tr>
 </tbody>
