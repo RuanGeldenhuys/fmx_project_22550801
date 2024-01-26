@@ -486,6 +486,90 @@ constraints. Lastly, estimation is done via maximum likelihood.
 \hypertarget{stratification}{%
 \subsection{Stratification}\label{stratification}}
 
+Stratification analyses allows for the investigation of a particular
+assets volatility during a particular period of volatility of another
+asset. While such analysis does not lend itself to causal interpretation
+regarding volatility spillovers, it does paint a picture of whether the
+indices that are being investigated tend to have periods of high or low
+volatility at the same time. In turn, this could point to a direction of
+interconnectedness between markets which can then be revealed through
+more robust analysis. The stratification analyses follows below.
+
+\begin{table}[H]
+\centering
+\caption{S\&P 500 High Volatility} 
+\begin{tabular}{lrrlr}
+  \hline
+Index & SD & Full\_SD & Period & Ratio \\ 
+  \hline
+JSE40 & 0.23 & 0.17 & High\_Vol SP500 & 1.35 \\ 
+  ZARUSD & 0.19 & 0.16 & High\_Vol SP500 & 1.17 \\ 
+   \hline
+\end{tabular}
+\end{table}
+\begin{table}[H]
+\centering
+\caption{S\&P 500 Low Volatility} 
+\begin{tabular}{lrrlr}
+  \hline
+Index & SD & Full\_SD & Period & Ratio \\ 
+  \hline
+ZARUSD & 0.16 & 0.16 & Low\_Vol SP500 & 1.03 \\ 
+  JSE40 & 0.14 & 0.17 & Low\_Vol SP500 & 0.81 \\ 
+   \hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{JSE Top 40 High Volatility} 
+\begin{tabular}{lrrlr}
+  \hline
+Index & SD & Full\_SD & Period & Ratio \\ 
+  \hline
+SP500 & 0.20 & 0.15 & High\_Vol JSE40 & 1.37 \\ 
+  ZARUSD & 0.19 & 0.16 & High\_Vol JSE40 & 1.17 \\ 
+   \hline
+\end{tabular}
+\end{table}
+\begin{table}[H]
+\centering
+\caption{JSE Top 40 Low Volatility} 
+\begin{tabular}{lrrlr}
+  \hline
+Index & SD & Full\_SD & Period & Ratio \\ 
+  \hline
+ZARUSD & 0.13 & 0.16 & Low\_Vol JSE40 & 0.82 \\ 
+  SP500 & 0.10 & 0.15 & Low\_Vol JSE40 & 0.70 \\ 
+   \hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{ZAR/USD High Volatility} 
+\begin{tabular}{lrrlr}
+  \hline
+Index & SD & Full\_SD & Period & Ratio \\ 
+  \hline
+JSE40 & 0.18 & 0.17 & High\_Vol ZARUSD & 1.04 \\ 
+  SP500 & 0.16 & 0.15 & High\_Vol ZARUSD & 1.07 \\ 
+   \hline
+\end{tabular}
+\end{table}
+\begin{table}[H]
+\centering
+\caption{ZAR/USD Low Volatility} 
+\begin{tabular}{lrrlr}
+  \hline
+Index & SD & Full\_SD & Period & Ratio \\ 
+  \hline
+JSE40 & 0.13 & 0.17 & Low\_Vol ZARUSD & 0.79 \\ 
+  SP500 & 0.13 & 0.15 & Low\_Vol ZARUSD & 0.88 \\ 
+   \hline
+\end{tabular}
+\end{table}
+
 \hypertarget{dcc}{%
 \subsection{DCC}\label{dcc}}
 

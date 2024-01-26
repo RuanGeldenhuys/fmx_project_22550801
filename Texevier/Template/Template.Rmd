@@ -371,7 +371,7 @@ where $C$, $A$ and $B$ are coefficient matrices. Notably, $C$ is a triangular ma
 Stratification analyses allows for the investigation of a particular assets volatility during a particular period of volatility of another asset. While such analysis does not lend itself to causal interpretation regarding volatility spillovers, it does paint a picture of whether the indices that are being investigated tend to have periods of high or low volatility at the same time. In turn, this could point to a direction of interconnectedness between markets which can then be revealed through more robust analysis. The stratification analyses follows below.
 
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, results='asis'}
 #Winsorizing the data to reduce influence of extreme returns
 Idxs <- joinedDF %>% 
     gather(Index, Returns, -date) %>% 
@@ -386,18 +386,88 @@ Idxs <- joinedDF %>%
 # of high and low volatility periods for a specific series
 
 results_SP <- analyze_volatility_periods(joinedDF, "SP500", Idxs)
-kableExtra::kable(results_SP$HighVol, caption = "S&P 500")
-kableExtra::kable(results_SP$LowVol, caption = "S&P 500")
+table <- xtable(results_SP$HighVol, caption = "S\\&P 500 High Volatility")
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = FALSE
+             )
+table <- xtable(results_SP$LowVol, caption = "S\\&P 500 Low Volatility")
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = FALSE
+             )
 
-results_rand <- analyze_volatility_periods(joinedDF, "ZARUSD", Idxs)
-kableExtra::kable(results_rand$HighVol, caption = "ZAR/USD")
-kableExtra::kable(results_rand$LowVol, caption = "ZAR/USD")
 
+
+# results_rand <- analyze_volatility_periods(joinedDF, "ZARUSD", Idxs)
+# kableExtra::kable(results_rand$HighVol, caption = "ZAR/USD")
+# kableExtra::kable(results_rand$LowVol, caption = "ZAR/USD")
+# 
+# results_JSE <- analyze_volatility_periods(joinedDF, "JSE40", Idxs)
+# kableExtra::kable(results_JSE$HighVol, caption = "JSE Top 40")
+# kableExtra::kable(results_JSE$LowVol, caption = "JSE Top 40")
+
+
+
+```
+
+```{r, results='asis'}
 results_JSE <- analyze_volatility_periods(joinedDF, "JSE40", Idxs)
-kableExtra::kable(results_JSE$HighVol, caption = "JSE Top 40")
-kableExtra::kable(results_JSE$LowVol, caption = "JSE Top 40")
+table <- xtable(results_JSE$HighVol, caption = "JSE Top 40 High Volatility")
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = FALSE
+             )
+table <- xtable(results_JSE$LowVol, caption = "JSE Top 40 Low Volatility")
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = FALSE
+             )
 
+```
 
+```{r, results='asis'}
+results_rand <- analyze_volatility_periods(joinedDF, "ZARUSD", Idxs)
+table <- xtable(results_rand$HighVol, caption = "ZAR/USD High Volatility")
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = FALSE
+             )
+table <- xtable(results_rand$LowVol, caption = "ZAR/USD Low Volatility")
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = FALSE
+             )
 
 ```
 
