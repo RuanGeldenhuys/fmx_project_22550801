@@ -88,7 +88,7 @@ output:
     fig_width: 3.5 # Adjust default figure sizes. This can also be done in the chunks of the text.
     fig_height: 3.5
 abstract: |
-  I investigate the relationship between the voaltilities of S\\&P 500 and the JSE Top 40. The purpose of this study is to investigate if this relationship changes in any significant way during the two biggest crisis periods in the last two decades, namely the Global Financial Crisis and Covid-19. I first do a stratification analysis which reveals significant evidence of these two indices sharing periods of high volatility. I then fit multiple multivariate GARCH models to further investigate the volatility relationship and find... 
+  I investigate the relationship between the voaltilities of S\&P 500 and the JSE Top 40. The purpose of this study is to investigate if this relationship changes in any significant way during the two biggest crisis periods in the last two decades, namely the Global Financial Crisis and Covid-19. I first do a stratification analysis which reveals significant evidence of these two indices sharing periods of high volatility. I then fit multiple multivariate GARCH models to further investigate the volatility relationship and find... 
 ---
 
 <!-- First: Set your default preferences for chunk options: -->
@@ -131,7 +131,7 @@ list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.
 
 # Data
 
-Three return series are used in the analysis that follows. These are the monthly returns for the S\&P 500 and the JSE Top 40, as well as thhe ZAR/USD exchange rate. The exchange rate is represented as the amount of Rands required to buy one US Dollar. Since the series is represented as a growth rate, a postive growth rate represents a depreciation of the Rand, and conversely, an appreciation of the Dollar. The returns for these 3 series' are visualised below in Figures \ref{Figure1} to \ref{Figure3}.
+Three return series are used in the analysis that follows. These are the monthly returns for the S\&P 500 and the JSE Top 40, as well as thhe ZAR/USD exchange rate. The exchange rate is represented as the amount of Rands required to buy one US Dollar. Since the series is represented as a growth rate, a postive growth rate represents a depreciation of the Rand, and conversely, an appreciation of the Dollar. The inclusion of an exchange rate serves primarily as a control variable and as such analysis regarding the exchange rate is kept to a minimum in the final analysis. The returns for these 3 series' are visualised below in Figures \ref{Figure1} to \ref{Figure3}.
 
 ```{r Figure1, warning =  FALSE, fig.align = 'center', fig.cap = "S\\&P 500 Returns \\label{Figure1}", fig.ext = 'png', fig.height = 5, fig.width = 6}
 
@@ -305,7 +305,7 @@ As can be seen in Table \ref{tab2}, for the S\&P 500 and the JSE Top 40, the p-v
 
 # Methodology
 
-I first perform stratification analysis on all three series to determine if periods of high or low volatility are shared across the S\\&P, the JSE and the ZAR/USD exchange rate. I then fit multiple univariate GARCH models on all three variables to determine an appropriate specification for the multivariate models to come. I then fit three multivariate GARCH models, namely a DCC model, a Go-GARCH model, and a BEKK-GARCH model. Formal definitions and explanations of these models follow below.
+I first perform stratification analysis on all three series to determine if periods of high or low volatility are shared across the S\&P, the JSE and the ZAR/USD exchange rate. I then fit multiple univariate GARCH models on all three variables to determine an appropriate specification for the multivariate models to come. I then fit three multivariate GARCH models, namely a DCC model, a Go-GARCH model, and a BEKK-GARCH model. Formal definitions and explanations of these models follow below.
 
 ## DCC GARCH
 
@@ -339,7 +339,7 @@ Generalized Orthogonalized (GO) GARCH models are another class of multivariate G
 R_t = B_t F_t \label{eq4}
 \end{equation}
 
-Here $B_t$ is a time-varying $n \times n$ matrix of loadings and  $F_t$ are the orthogonal components, $F_t = (F_{1t}, F_{2t}, ... F_{nt})`$, that are assumed to follow a univariate GARCH process:
+Here $B_t$ is a time-varying $n \times n$ matrix of loadings and  $F_t$ are the orthogonal components, $F_t = (F_{1t}, F_{2t}, ... F_{nt})'$, that are assumed to follow a univariate GARCH process:
 
 \begin{equation}
 F_{it} = \sigma_{it}z_{it} \quad z_{it} \sim N(0,1)\label{eq5}
@@ -349,9 +349,59 @@ where $\sigma^2_{it}$ is the conditional variance of $F_{it}$. In order to estim
 
 ## BEKK-GARCH
 
+The BEKK-GARCH models, initially developed by @Bekk1995, are designed specifically to study spillovers between series. The model's ability to capture dynamic covariances and correlations makes it particularly useful for analyzing the interdependencies in financial markets, especially in the context of crises periods. As before consider $n$ assets with returns, $R_t = (R_{1t}, R_{2t}, ... R_{nt})$. For a GARCH(1,1) these returns are given by:
+
+\begin{equation}
+R_t = \mu + \epsilon_t, \quad \epsilon_t = H_t^{1/2} z_t, \quad z_t \sim N(0, I) \label{eq6}
+\end{equation}
+
+In Equation \ref{eq6}, as before $\mu$ is the vector of mean returns and $\epsilon_t$ is the vector of residuals. Now, $H_t$ is the conditional covariance matrix and $z_t$ is a vector of i.i.d. standard normal innovations. The conditional covariance matrix $H_t$ is modeled as:
+
+\begin{equation}
+H_t = C + A \epsilon_{t-1} \epsilon'_{t-1} A' + B H_{t-1} B' \label{eq7}
+\end{equation}
+
+where $C$, $A$ and $B$ are coefficient matrices. Notably, $C$ is a triangular matrix with positive diagonal elements, ensuring that it is positive definite. This attribute removes the need for additional constraints. Lastly, estimation is done via maximum likelihood. 
+
+
 # Results
 
 ## Stratification
+
+Stratification analyses allows for the investigation of a particular assets volatility during a particular period of volatility of another asset. While such analysis does not lend itself to causal interpretation regarding volatility spillovers, it does paint a picture of whether the indices that are being investigated tend to have periods of high or low volatility at the same time. In turn, this could point to a direction of interconnectedness between markets which can then be revealed through more robust analysis. The stratification analyses follows below.
+
+
+```{r, warning=FALSE}
+#Winsorizing the data to reduce influence of extreme returns
+Idxs <- joinedDF %>% 
+    gather(Index, Returns, -date) %>% 
+    mutate(Year = format(date, "%Y")) %>% 
+    group_by(Index) %>% 
+    mutate(Top = quantile(Returns, 0.99), Bot = quantile(Returns, 0.01)) %>% 
+    mutate(Returns = ifelse(Returns > Top, Top, 
+                         ifelse(Returns < Bot, Bot, Returns))) %>% 
+    ungroup()
+
+#The analyze_volatility_periods function returns a table for stratification analysis
+# of high and low volatility periods for a specific series
+
+results_SP <- analyze_volatility_periods(joinedDF, "SP500", Idxs)
+kableExtra::kable(results_SP$HighVol, caption = "S&P 500")
+kableExtra::kable(results_SP$LowVol, caption = "S&P 500")
+
+results_rand <- analyze_volatility_periods(joinedDF, "ZARUSD", Idxs)
+kableExtra::kable(results_rand$HighVol, caption = "ZAR/USD")
+kableExtra::kable(results_rand$LowVol, caption = "ZAR/USD")
+
+results_JSE <- analyze_volatility_periods(joinedDF, "JSE40", Idxs)
+kableExtra::kable(results_JSE$HighVol, caption = "JSE Top 40")
+kableExtra::kable(results_JSE$LowVol, caption = "JSE Top 40")
+
+
+
+```
+
+
 
 ## DCC
 

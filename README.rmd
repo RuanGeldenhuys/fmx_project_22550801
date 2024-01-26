@@ -421,5 +421,4 @@ kable(renamed_BEKK_se$`GARCH standard errors`,
 
 
 
-
 ```
