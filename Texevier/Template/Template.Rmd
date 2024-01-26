@@ -128,11 +128,10 @@ list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.
 # Introduction \label{Introduction}
 
 
-# Data and Methodology
 
-## Data
+# Data
 
-Three return series are used in the analysis that follows. These are the monthly returns for the S\\&P 500 and the JSE Top 40, as well as thhe ZAR/USD exchange rate. The exchange rate is represented as the amount of Rands required to buy one US Dollar. Since the series is represented as a growth rate, a postive growth rate represents a depreciation of the Rand, and conversely, an appreciation of the Dollar. The returns for these 3 series' are visualised below in Figures \ref{Figure1} to \ref{Figure3}. 
+Three return series are used in the analysis that follows. These are the monthly returns for the S\&P 500 and the JSE Top 40, as well as thhe ZAR/USD exchange rate. The exchange rate is represented as the amount of Rands required to buy one US Dollar. Since the series is represented as a growth rate, a postive growth rate represents a depreciation of the Rand, and conversely, an appreciation of the Dollar. The returns for these 3 series' are visualised below in Figures \ref{Figure1} to \ref{Figure3}.
 
 ```{r Figure1, warning =  FALSE, fig.align = 'center', fig.cap = "S\\&P 500 Returns \\label{Figure1}", fig.ext = 'png', fig.height = 5, fig.width = 6}
 
@@ -182,14 +181,13 @@ returnplots$`JSE Top 40`
 
 ```
 
-Not much information can be revealed through simply observing the returns over time. However, when investigating the squared returns as a measure of volatility, it is clear to see that the JSE Top 40 is substantially more volatile than the S\\&P 500. This result is reinforced by Table \ref{tab1}, where the JSE showcases a standard deviation considerably higher than that of the S\\&P. Interestingly, the JSE Top 40 showcases higher average monthly returns, however that comes at the cost of the increased volatility as described above. Lastly, as shown in Table \ref{tab1} the S\\&P experienced the largest draw down, while the JSE experienced the largest uptick.
+Not much information can be revealed through simply observing the returns over time. However, when investigating the squared returns as a measure of volatility, it is clear to see that the JSE Top 40 is substantially more volatile than the S\&P 500. This result is reinforced by Table \ref{tab1}, where the JSE showcases a standard deviation considerably higher than that of the S\&P. Interestingly, the JSE Top 40 showcases higher average monthly returns, however that comes at the cost of the increased volatility as described above. Lastly, as shown in Table \ref{tab1} the S\&P experienced the largest draw down, while the JSE experienced the largest uptick.
 
 ```{r Figure3, warning =  FALSE, fig.align = 'center', fig.cap = "ZAR/USD Returns \\label{Figure3}", fig.ext = 'png', fig.height = 5, fig.width = 6}
 
 returnplots$`USD/ZAR`
 
 ```
-
 
 ```{r, results='asis'}
 sumstats <- function(vec){
@@ -231,9 +229,125 @@ table <- xtable(stats_df, caption = "Summary Statistics \\label{tab1}", digits =
 
 ```
 
+Before GARCH models can be fitted, ARCH tests need to be conducted in order to see if controlling for conditional heteroskedasticity is appropriate. I employ two tests. First, a univariate Ljung-Box test is conducted on each series. Practically, to test for ARCH effects a simple AR(1) model is fitted for each series and then Ljung-Box tests are done on the residuals of each AR(1). Next, multivariate Portmanteau tests are conducted to incorporate all variables simultaneously. As outlined by @Tsay2014, 3 tests are tun. The results can found in the tables below
 
-## Methodology 
-I first perform stratification analysis on all three series to determine if periods of high or low volatility are shared accros the S\\&P, the JSE and the ZAR/USD exchange rate. I then fit multiple univariate GARCH models on all three variables to determine an appropriate specification for the multivariate models to come. I then fit three multivariate GARCH models, namely a DCC model, a Go-GARCH model, and a BEKK-GARCH model. Formal definitions and explanations of these models follow below.
+```{r, results='asis'}
+ret_df <- joinedDF %>% 
+    select(c(-date))
+
+
+ljungbox_tests <- function(df) {
+  results <- data.frame(Series = character(),
+                        TestStatistic = numeric(),
+                        PValue = numeric(),
+                        LagOrder = numeric(),
+                        stringsAsFactors = FALSE)
+
+  for (series in names(df)) {
+    # Fit AR(1) model
+    model <- lm(df[[series]] ~ lag(df[[series]]), data = df, na.action = na.exclude)
+
+    # Perform Ljung-Box test on squared residuals
+    test_result <- Box.test(residuals(model)^2, lag = 12, type = "Ljung-Box", fitdf = 1)
+
+    # Compile results
+    results <- rbind(results, data.frame(Series = series,
+                                         TestStatistic = test_result$statistic,
+                                         PValue = test_result$p.value,
+                                         LagOrder = 12))
+  }
+
+  rownames(results) <- NULL
+
+  return(results)
+}
+
+
+arch_results_lb <- ljungbox_tests(ret_df)
+table <- xtable(arch_results_lb, caption = "Ljung-Box Tests \\label{tab2}", digits = c(0,0,4,4,0))
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = FALSE
+             )
+
+
+```
+```{r, include=FALSE}
+arch_results_march <- MarchTest(ret_df)
+```
+```{r, results='asis'}
+march_df <- data.frame(
+    Test <- c( "Q(m) of squared series(LM test)", "Rank-based Test", "Q_k(m) of squared series:"),
+    TestStat <- c( 81.3244, 92.5271, 165.2131),
+    pval <- c( 0.0001, 0.0001, 0.0001)
+)
+colnames(march_df)<- c("", "Test Statistic", "p-value")
+
+table <- xtable(march_df, caption = "MV Portmanteau Tests \\label{tab3}", digits = c(0,0,4,4))
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = FALSE
+             )
+
+
+```
+As can be seen in Table \ref{tab2}, for the S\&P 500 and the JSE Top 40, the p-values are functionally zero. This means that we can reject the null of no ARCH effects for these series. The same does not hold for ZAR/USD exchange rate, which has a p-value greater than the critical level of 0.05. However when conducting multivariate tests, all tests report p-values that are functionally zero. As such the analysis continues with the assumption that ARCH effects are present within the data. This serves as motivation for the use of GARCH models in this essay.
+
+# Methodology
+
+I first perform stratification analysis on all three series to determine if periods of high or low volatility are shared across the S\\&P, the JSE and the ZAR/USD exchange rate. I then fit multiple univariate GARCH models on all three variables to determine an appropriate specification for the multivariate models to come. I then fit three multivariate GARCH models, namely a DCC model, a Go-GARCH model, and a BEKK-GARCH model. Formal definitions and explanations of these models follow below.
+
+## DCC GARCH
+
+Dynamic Conditional Correlation (DCC) models, developed by @Engle2002, are a class of multivariate GARCH models that allow for time varying correlation between variables. This is especially useful to study how specific time periods, like crises, affect the relationship between different stock indices and financial variables. Consider the following GARCH(1,1) model:
+
+\begin{equation}
+R_{it} = \mu_i + \epsilon_{it}, \quad \epsilon_{it} = \sigma_{it}z_{it}, \quad z_{it} \sim N(0,1) \label{eq1}
+\end{equation}
+
+In the equation above, $R_t = (R_{1t}, R_{2t}, ... R_{nt})$, for $n$ assets/variables, is a vector of asset returns at time $t$. Here $\mu_i$ is the mean return, $\epsilon_{it}$ is the residual, $\sigma_{it}^2$ is the conditional variance and $z_{it}$ is the standard normal innovation. The conditional variance $\sigma_{it}^2$ is modeled as:
+
+\begin{equation}
+\sigma_{it}^2 = \alpha_0 + \alpha_1 \epsilon_{it-1}^2 + \beta_1 \sigma_{it-1}^2 \label{eq2}
+\end{equation}
+
+To specify the DCC model, the standardized residuals are defined as $\tilde{\epsilon_t} = \left( \epsilon_{1t} / \sigma_{1t}, \ldots, \epsilon_{nt} / \sigma_{nt} \right)'$. The correlation matrix of $\tilde{\epsilon_t}$, denoted by $Q_t$, evolves over time as: 
+
+\begin{equation}
+Q_t = \bar{Q}(1 - a - b) + a \tilde{\epsilon}_{t-1}  \tilde{\epsilon}'_{t-1} + b Q_{t-1} \label{eq3}
+\end{equation}
+
+where $\bar{Q}$ is the unconditional correlation matrix of $\tilde{\epsilon_t}$. Parameters, $a$ and $b$ are positive and adhere to $a + b < 1$ to ensure stationarity. To obtain the dynamic conditional correlation, the elements of $Q_t$ are standardized. 
+
+In order to estimate a DCC GARCH model, two steps are followed. First, to obtain $\sigma_{it}$ and $\tilde{\epsilon}_t$, a univariate GARCH is fitted for each return series. Then, secondly, the DCC parameters $a$ and $b$ are estimated using a likelihood function derived from the conditional multivariate distribution of $\tilde{\epsilon}_t$.
+
+## GO-GARCH
+
+Generalized Orthogonalized (GO) GARCH models are another class of multivariate GARCH models. Developed by @VanDerWeide2002, the model is based on the assumption that asset returns can be decomposed into orthogonal components, thus simplifying the modeling of their covariance structure. Note that GO-GARCH models can become computationally intensive quickly, as the number of variables in the model increases. Once again consider a a set of $n$ asset returns,  $R_t = (R_{1t}, R_{2t}, ... R_{nt})$. These returns can be expressed as a linear combination of its orthogonal components:
+
+\begin{equation}
+R_t = B_t F_t \label{eq4}
+\end{equation}
+
+Here $B_t$ is a time-varying $n \times n$ matrix of loadings and  $F_t$ are the orthogonal components, $F_t = (F_{1t}, F_{2t}, ... F_{nt})`$, that are assumed to follow a univariate GARCH process:
+
+\begin{equation}
+F_{it} = \sigma_{it}z_{it} \quad z_{it} \sim N(0,1)\label{eq5}
+\end{equation}
+
+where $\sigma^2_{it}$ is the conditional variance of $F_{it}$. In order to estimate the model, the loading matrix $B_t$ is estimated based on the observed correlation of the series', while the volatilities of the orthogonal components, $\sigma^2_{it}$, are estimated using standard GARCH procedures. 
+
+## BEKK-GARCH
 
 # Results
 
@@ -244,7 +358,6 @@ I first perform stratification analysis on all three series to determine if peri
 ## Go-GARCH
 
 ## BEKK-GARCH
-
 
 # Conclusion
 

@@ -243,11 +243,8 @@ Multivariate GARCH \sep Spillovers \\
 \section{\texorpdfstring{Introduction
 \label{Introduction}}{Introduction }}\label{introduction}}
 
-\hypertarget{data-and-methodology}{%
-\section{Data and Methodology}\label{data-and-methodology}}
-
 \hypertarget{data}{%
-\subsection{Data}\label{data}}
+\section{Data}\label{data}}
 
 Three return series are used in the analysis that follows. These are the
 monthly returns for the S\textbackslash\&P 500 and the JSE Top 40, as
@@ -315,20 +312,160 @@ Mean & 0.0066 & 0.0121 & 0.0040 \\
 \end{tabular}
 \end{table}
 
+Before GARCH models can be fitted, ARCH tests need to be conducted in
+order to see if controlling for conditional heteroskedasticity is
+appropriate. I employ two tests. First, a univariate Ljung-Box test is
+conducted on each series. Practically, to test for ARCH effects a simple
+AR(1) model is fitted for each series and then Ljung-Box tests are done
+on the residuals of each AR(1). Next, multivariate Portmanteau tests are
+conducted to incorporate all variables simultaneously. As outlined by
+Tsay (\protect\hyperlink{ref-Tsay2014}{2014}), 3 tests are tun. The
+results can found in the tables below
+
+\begin{table}[H]
+\centering
+\caption{Ljung-Box Tests \label{tab2}} 
+\begin{tabular}{lrrr}
+  \hline
+Series & TestStatistic & PValue & LagOrder \\ 
+  \hline
+SP500 & 66.5254 & 0.0000 & 12 \\ 
+  JSE40 & 65.7493 & 0.0000 & 12 \\ 
+  ZARUSD & 16.0904 & 0.1378 & 12 \\ 
+   \hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{MV Portmanteau Tests \label{tab3}} 
+\begin{tabular}{lrr}
+  \hline
+ & Test Statistic & p-value \\ 
+  \hline
+Q(m) of squared series(LM test) & 81.3244 & 0.0001 \\ 
+  Rank-based Test & 92.5271 & 0.0001 \\ 
+  Q\_k(m) of squared series: & 165.2131 & 0.0001 \\ 
+   \hline
+\end{tabular}
+\end{table}
+
+As can be seen in Table \ref{tab2}, the S\textbackslash\&P 500 and the
+JSE Top 40, the p-values are functionally zero. This means that we can
+reject the null of no ARCH effects for these series. The same does not
+hold for ZAR/USD exchange rate, which has a p-value greater than the
+critical level of 0.05. However when conducted multivariate tests, all
+test report p-values that are functionally zero. As such the analysis
+continues with the assumption that ARCH effects are present within the
+data. This serves as motivation for the use of GARCH models.
+
 \hypertarget{methodology}{%
-\subsection{Methodology}\label{methodology}}
+\section{Methodology}\label{methodology}}
+
+I first perform stratification analysis on all three series to determine
+if periods of high or low volatility are shared across the
+S\textbackslash\&P, the JSE and the ZAR/USD exchange rate. I then fit
+multiple univariate GARCH models on all three variables to determine an
+appropriate specification for the multivariate models to come. I then
+fit three multivariate GARCH models, namely a DCC model, a Go-GARCH
+model, and a BEKK-GARCH model. Formal definitions and explanations of
+these models follow below.
+
+\hypertarget{dcc-garch}{%
+\subsection{DCC GARCH}\label{dcc-garch}}
+
+Dynamic Conditional Correlation (DCC) models, developed by Engle
+(\protect\hyperlink{ref-Engle2002}{2002}), are a class of multivariate
+GARCH models that allow for time varying correlation between variables.
+This is especially useful to study how specific time periods, like
+crises, affect the relationship between different stock indices and
+financial variables. Consider the following GARCH(1,1) model:
+
+\begin{equation}
+R_{it} = \mu_i + \epsilon_{it}, \quad \epsilon_{it} = \sigma_{it}z_{it}, \quad z_{it} \sim N(0,1) \label{eq1}
+\end{equation}
+
+In the equation above, \(R_t = (R_{1t}, R_{2t}, ... R_{nt})\), for \(n\)
+assets/variables, is a vector of asset returns at time \(t\). Here
+\(\mu_i\) is the mean return, \(\epsilon_{it}\) is the residual,
+\(\sigma_{it}^2\) is the conditional variance and \(z_{it}\) is the
+standard normal innovation. The conditional variance \(\sigma_{it}^2\)
+is modeled as:
+
+\begin{equation}
+\sigma_{it}^2 = \alpha_0 + \alpha_1 \epsilon_{it-1}^2 + \beta_1 \sigma_{it-1}^2 \label{eq2}
+\end{equation}
+
+To specify the DCC model, the standardized residuals are defined as
+\(\tilde{\epsilon_t} = \left( \epsilon_{1t} / \sigma_{1t}, \ldots, \epsilon_{nt} / \sigma_{nt} \right)'\).
+The correlation matrix of \(\tilde{\epsilon_t}\), denoted by \(Q_t\),
+evolves over time as:
+
+\begin{equation}
+Q_t = \bar{Q}(1 - a - b) + a \tilde{\epsilon}_{t-1}  \tilde{\epsilon}'_{t-1} + b Q_{t-1} \label{eq3}
+\end{equation}
+
+where \(\bar{Q}\) is the unconditional correlation matrix of
+\(\tilde{\epsilon_t}\). Parameters, \(a\) and \(b\) are positive and
+adhere to \(a + b < 1\) to ensure stationarity. To obtain the dynamic
+conditional correlation, the elements of \(Q_t\) are standardized.
+
+In order to estimate a DCC GARCH model, two steps are followed. First,
+to obtain \(\sigma_{it}\) and \(\tilde{\epsilon}_t\), a univariate GARCH
+is fitted for each return series. Then, secondly, the DCC parameters
+\(a\) and \(b\) are estimated using a likelihood function derived from
+the conditional multivariate distribution of \(\tilde{\epsilon}_t\).
+
+\hypertarget{go-garch}{%
+\subsection{GO-GARCH}\label{go-garch}}
+
+Generalized Orthogonalized (GO) GARCH models are another class of
+multivariate GARCH models. Developed by Van der Weide
+(\protect\hyperlink{ref-VanDerWeide2002}{2002}), the model is based on
+the assumption that asset returns can be decomposed into orthogonal
+components, thus simplifying the modeling of their covariance structure.
+Note that GO-GARCH models can become computationally intensive quickly,
+as the number of variables in the model increases. Once again consider a
+a set of \(n\) asset returns, \(R_t = (R_{1t}, R_{2t}, ... R_{nt})\).
+These returns can be expressed as a linear combination of its orthogonal
+components:
+
+\begin{equation}
+R_t = B_t F_t \label{eq4}
+\end{equation}
+
+Here \(B_t\) is a time-varying \(n \times n\) matrix of loadings and
+\(F_t\) are the orthogonal components,
+\(F_t = (F_{1t}, F_{2t}, ... F_{nt})`\), that are assumed to follow a
+univariate GARCH process:
+
+\begin{equation}
+F_{it} = \sigma_{it}z_{it} \quad z_{it} \sim N(0,1)\label{eq5}
+\end{equation}
+
+where \(\sigma^2_{it}\) is the conditional variance of \(F_{it}\). In
+order to estimate the model, the loading matrix \(B_t\) is estimated
+based on the observed correlation of the series', while the volatilities
+of the orthogonal components, \(\sigma^2_{it}\), are estimated using
+standard GARCH procedures.
+
+\hypertarget{bekk-garch}{%
+\subsection{BEKK-GARCH}\label{bekk-garch}}
 
 \hypertarget{results}{%
 \section{Results}\label{results}}
 
+\hypertarget{stratification}{%
+\subsection{Stratification}\label{stratification}}
+
 \hypertarget{dcc}{%
 \subsection{DCC}\label{dcc}}
 
-\hypertarget{go-garch}{%
-\subsection{Go-GARCH}\label{go-garch}}
+\hypertarget{go-garch-1}{%
+\subsection{Go-GARCH}\label{go-garch-1}}
 
-\hypertarget{bekk-garch}{%
-\subsection{BEKK-GARCH}\label{bekk-garch}}
+\hypertarget{bekk-garch-1}{%
+\subsection{BEKK-GARCH}\label{bekk-garch-1}}
 
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}
@@ -337,9 +474,9 @@ I hope you find this template useful. Remember, stackoverflow is your
 friend - use it to find answers to questions. Feel free to write me a
 mail if you have any questions regarding the use of this package. To
 cite this package, simply type citation(``Texevier'') in Rstudio to get
-the citation for Katzke (\protect\hyperlink{ref-Texevier}{2017}) (Note
-that uncited references in your bibtex file will not be included in
-References).
+the citation for (\protect\hyperlink{ref-Texevier}{\textbf{Texevier?}})
+(Note that uncited references in your bibtex file will not be included
+in References).
 
 \newpage
 
@@ -349,10 +486,19 @@ References).
 
 \hypertarget{refs}{}
 \begin{CSLReferences}{1}{0}
-\leavevmode\vadjust pre{\hypertarget{ref-Texevier}{}}%
-Katzke, N.F. 2017. \emph{{Texevier}: {P}ackage to create elsevier
-templates for rmarkdown}. Stellenbosch, South Africa: Bureau for
-Economic Research.
+\leavevmode\vadjust pre{\hypertarget{ref-Engle2002}{}}%
+Engle, R. 2002. Dynamic conditional correlation: A simple class of
+multivariate generalized autoregressive conditional heteroskedasticity
+models. \emph{Journal of Business \& Economic Statistics}.
+20(3):339--350.
+
+\leavevmode\vadjust pre{\hypertarget{ref-Tsay2014}{}}%
+Tsay, R.S. 2014. \emph{An introduction to analysis of financial data
+with r}. John Wiley \& Sons.
+
+\leavevmode\vadjust pre{\hypertarget{ref-VanDerWeide2002}{}}%
+Van der Weide, R. 2002. GO-garch: A multivariate generalized orthogonal
+garch model. \emph{Journal of Applied Econometrics}. 17(5):549--564.
 
 \end{CSLReferences}
 
