@@ -488,83 +488,6 @@ garch_xts <- joinedDF %>%
            ZARUSD = ZARUSD) %>% 
     tbl2xts::tbl_xts()
 
-DCCpre <- dccPre(garch_xts, include.mean = T, p = 0)
-StdRes <- DCCpre$sresi
-
-DCC <- dccFit(StdRes, type="Engle")
-
-Rhot <- DCC$rho.t
-
-ReturnSeries = garch_xts
-DCC.TV.Cor = Rhot
-
-
-
-
-Rhot <- 
-  renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = Rhot)
-
-```
-
-
-```{r Figure4, warning =  FALSE, fig.align = 'center', fig.cap = "DCC GARCH \\label{Figure4}", fig.ext = 'png', fig.height = 5, fig.width = 6}
-dcc_JSE <- ggplot(Rhot %>% filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
-    geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
-    
-    annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
-    ymin = -Inf, ymax = Inf, fill = "red", alpha = 0.4)+
-    annotate("rect", xmin = as.Date("2020-03-15"), xmax = as.Date("2021-12-01"),
-    ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.4)+
-    
-    theme_fmx()+
-    ggtitle("Dynamic Conditional Correlations: JSE")+
-    scale_x_date(date_breaks = "4 years", date_labels = "%Y")
-
-finplot(dcc_JSE)
-```
-
-The dynamic conditional correlation for the JSE Top 40, as reported by the DCC-GARCH model, are shown in Figure \ref{Figure4}. Intuitively, it shows a noise reduced correlation between the JSE and other variables in the system over time. What is immediately clear is that the JSE shares a significantly higher correlation with the S\&P 500, than it does with the ZAR/USD exchange rate. In fact, the correlation with the ZAR/USD is negative for much of the sample period. This result does make sense since "increases" in the exchange rate indicate a depreciation of the Rand.
-
-Analyzing the crisis periods, particularly in the context of the correlation between the JSE Top 40 and the S\&P 500, reveals an interesting result. Note, the GFC period is indicated by the red shaded area, while Covid-19 is shown in blue. During the GFC the correlation jumps up initially, then turns sharply downward, before tending upward for the rest of the crisis. The difference in correlation between the start of the crises and the maximum correlation is equal to 0.098, while the difference between the start and end of the crisis is equal to 0.081.
-
-Correlation during Covid-19 behaves differently. Here the model reports a sharp increase in correlation that fades out as the crisis draws to a close. As such the maximum correlation appears early in the crisis period. The difference in correlation between the start of the crisis period and the maximum is equal to 0.158. The difference between the start and end of the crisis is smaller at 0.056.
-
-```{r, include=FALSE}
-# This code extracts the correlations for the GFC and COvid-19.
-# It then calculates the difference between the first and max, and the first and
-# last correlation.
-
-## GFC calculations
-gfc_df <- Rhot %>% 
-    filter(Pairs == "JSE_SP") %>% 
-    filter(date >= as.Date("2007-06-22") & date <= as.Date("2009-06-23"))
-
-first_gfc <- gfc_df %>% slice(1) %>% pull(Rho)
-last_gfc <- gfc_df %>% slice(n()) %>% pull(Rho)
-max_gfc <- max(gfc_df$Rho)
-
-max_gfc - first_gfc
-last_gfc - first_gfc
-
-
-## Covid-19 calculations
-covid_df <- Rhot %>% 
-    filter(Pairs == "JSE_SP") %>% 
-    filter(date >= as.Date("2020-02-15") & date <= as.Date("2021-12-01"))
-
-first_covid <- covid_df %>% slice(1) %>% pull(Rho)
-last_covid <- covid_df %>% slice(n()) %>% pull(Rho)
-max_covid <- max(covid_df$Rho)
-
-max_covid - first_covid
-last_covid - first_covid
-
-```
-
-
-## Go-GARCH
-
-```{r, include=FALSE}
 uspec <- ugarchspec(variance.model = list(model = "gjrGARCH", garchOrder = c(1, 1)), 
                     mean.model = list(armaOrder = c(1, 0), include.mean = TRUE), 
                     distribution.model = "sstd")
@@ -593,16 +516,17 @@ dcc.time.var.cor <- aperm(dcc.time.var.cor, c(3, 2, 1))
 dim(dcc.time.var.cor) <- c(nrow(dcc.time.var.cor), ncol(dcc.time.var.cor)^2)
 
 dcc.time.var.cor <- renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = dcc.time.var.cor)
+
 ```
 
-```{r Figure5, warning =  FALSE, fig.align = 'center', fig.cap = "GO-GARCH \\label{Figure5}", fig.ext = 'png', fig.height = 5, fig.width = 6}
 
+```{r Figure4, warning =  FALSE, fig.align = 'center', fig.cap = "DCC GARCH \\label{Figure4}", fig.ext = 'png', fig.height = 5, fig.width = 6}
 dcc_JSE_gjr <- ggplot(dcc.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
     geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
     
     annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
     ymin = -Inf, ymax = Inf, fill = "red", alpha = 0.4)+
-    annotate("rect", xmin = as.Date("2020-03-15"), xmax = as.Date("2021-12-01"),
+    annotate("rect", xmin = as.Date("2020-03-15"), xmax = as.Date("2022-06-20"),
     ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.4)+
     
     theme_fmx()+
@@ -610,9 +534,128 @@ dcc_JSE_gjr <- ggplot(dcc.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), 
     scale_x_date(date_breaks = "4 years", date_labels = "%Y")
 
 finplot(dcc_JSE_gjr)
+```
+
+The dynamic conditional correlation for the JSE Top 40, as reported by the DCC-GARCH model, are shown in Figure \ref{Figure4}. Intuitively, it shows a noise reduced correlation between the JSE and other variables in the system over time. What is immediately clear is that the JSE shares a significantly higher correlation with the S\&P 500, than it does with the ZAR/USD exchange rate. In fact, the correlation with the ZAR/USD is negative for much of the sample period. This result does make sense since "increases" in the exchange rate indicate a depreciation of the Rand.
+
+Analyzing the crisis periods, particularly in the context of the correlation between the JSE Top 40 and the S\&P 500, reveals an interesting result. Note, the GFC period is indicated by the red shaded area, while Covid-19 is shown in blue. During the GFC the correlation jumps up initially, then turns sharply downward, before tending upward for the rest of the crisis. The difference in correlation between the start of the crises and the maximum correlation is equal to 0.075, while the difference between the start and end of the crisis is equal to 0.063.
+
+Correlation during Covid-19 behaves differently. Here the model reports a sharp increase in correlation that fades out as the crisis draws to a close. As such the maximum correlation appears early in the crisis period. The difference in correlation between the start of the crisis period and the maximum is equal to 0.115. The difference between the start and end of the crisis is smaller at 0.010.
+
+```{r, include=FALSE}
+# This code extracts the correlations for the GFC and COvid-19.
+# It then calculates the difference between the first and max, and the first and
+# last correlation.
+
+## GFC calculations
+gfc_df <- dcc.time.var.cor %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2007-06-22") & date <= as.Date("2009-06-23"))
+
+first_gfc <- gfc_df %>% slice(1) %>% pull(Rho)
+last_gfc <- gfc_df %>% slice(n()) %>% pull(Rho)
+max_gfc <- max(gfc_df$Rho)
+
+max_gfc - first_gfc
+last_gfc - first_gfc
+
+
+## Covid-19 calculations
+covid_df <- dcc.time.var.cor %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2020-02-15") & date <= as.Date("2021-12-01"))
+
+first_covid <- covid_df %>% slice(1) %>% pull(Rho)
+last_covid <- covid_df %>% slice(n()) %>% pull(Rho)
+max_covid <- max(covid_df$Rho)
+
+max_covid - first_covid
+last_covid - first_covid
+
+```
+
+
+## Go-GARCH
+
+```{r, include=FALSE}
+spec.go <- gogarchspec(multi_univ_garch_spec, 
+                       distribution.model = 'mvnorm', # or manig.
+                       ica = 'fastica') # Note: we use the fastICA
+cl <- makePSOCKcluster(10)
+multf <- multifit(multi_univ_garch_spec, garch_xts, cluster = cl)
+
+fit.gogarch <- gogarchfit(spec.go, 
+                      data = garch_xts, 
+                      solver = 'hybrid', 
+                      cluster = cl, 
+                      gfun = 'tanh', 
+                      maxiter1 = 40000, 
+                      epsilon = 1e-08, 
+                      rseed = 100)
+
+print(fit.gogarch)
+
+# Extracting time-varying conditional correlations: You know the drill...
+gog.time.var.cor <- rcor(fit.gogarch)
+gog.time.var.cor <- aperm(gog.time.var.cor,c(3,2,1))
+dim(gog.time.var.cor) <- c(nrow(gog.time.var.cor), ncol(gog.time.var.cor)^2)
+# Finally:
+gog.time.var.cor <-
+renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = gog.time.var.cor)
+```
+
+```{r Figure5, warning =  FALSE, fig.align = 'center', fig.cap = "GO-GARCH \\label{Figure5}", fig.ext = 'png', fig.height = 5, fig.width = 6}
+
+gog_JSE_gjr <- ggplot(gog.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
+    geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
+    
+    annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
+    ymin = -Inf, ymax = Inf, fill = "red", alpha = 0.4)+
+    annotate("rect", xmin = as.Date("2020-03-15"), xmax = as.Date("2022-06-20"),
+    ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.4)+
+    
+    theme_fmx()+
+    ggtitle("Dynamic Conditional Correlations: JSE")+
+    scale_x_date(date_breaks = "4 years", date_labels = "%Y")
+
+finplot(gog_JSE_gjr)
 
 
 ```
+
+The dynamic conditional correlations for the JSE Top 40, as estimated by the GO-GARCH model is reported in Figure \ref{Figure5}. It is immediately apparent that the exchange rate... As such the GO-GARCH serves as a robustness check for the results found by the DCC model. The difference in correlation between the start and maximum of the GFC is equal to 0.075, while the difference between the first and last correlation is equal to 0.063. For Covid-19, the difference between the first correlation and maximum correlation is 0.115, and the difference between the first and last is equal to 0.01.
+
+```{r, include=FALSE}
+# This code extracts the correlations for the GFC and COvid-19.
+# It then calculates the difference between the first and max, and the first and
+# last correlation.
+
+## GFC calculations
+gfc_df <- dcc.time.var.cor %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2007-06-22") & date <= as.Date("2009-06-23"))
+
+first_gfc <- gfc_df %>% slice(1) %>% pull(Rho)
+last_gfc <- gfc_df %>% slice(n()) %>% pull(Rho)
+max_gfc <- max(gfc_df$Rho)
+
+max_gfc - first_gfc
+last_gfc - first_gfc
+
+
+## Covid-19 calculations
+covid_df <- dcc.time.var.cor %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2020-02-15") & date <= as.Date("2021-12-01"))
+
+first_covid <- covid_df %>% slice(1) %>% pull(Rho)
+last_covid <- covid_df %>% slice(n()) %>% pull(Rho)
+max_covid <- max(covid_df$Rho)
+
+max_covid - first_covid
+last_covid - first_covid
+```
+
 
 ## BEKK-GARCH
 

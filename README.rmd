@@ -250,7 +250,7 @@ ReturnSeries = garch_xts
 DCC.TV.Cor = Rhot
 
 
-
+DCC$estimates
 
 Rhot <- 
   renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = Rhot)
@@ -320,6 +320,38 @@ finplot(dcc_JSE_gjr)
 
 ```
 
+```{r}
+# This code extracts the correlations for the GFC and COvid-19.
+# It then calculates the difference between the first and max, and the first and
+# last correlation.
+
+## GFC calculations
+gfc_df <- Rhot %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2007-06-22") & date <= as.Date("2009-06-23"))
+
+first_gfc <- gfc_df %>% slice(1) %>% pull(Rho)
+last_gfc <- gfc_df %>% slice(n()) %>% pull(Rho)
+max_gfc <- max(gfc_df$Rho)
+
+max_gfc - first_gfc
+last_gfc - first_gfc
+
+
+## Covid-19 calculations
+covid_df <- Rhot %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2020-02-15") & date <= as.Date("2021-12-01"))
+
+first_covid <- covid_df %>% slice(1) %>% pull(Rho)
+last_covid <- covid_df %>% slice(n()) %>% pull(Rho)
+max_covid <- max(covid_df$Rho)
+
+max_covid - first_covid
+last_covid - first_covid
+```
+
+
 ### Go-Garch
 
 Next I fit a Go-Garch model.
@@ -366,6 +398,38 @@ gog_JSE_gjr <- ggplot(gog.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), 
 finplot(gog_JSE_gjr)
 
 ```
+
+```{r}
+# This code extracts the correlations for the GFC and COvid-19.
+# It then calculates the difference between the first and max, and the first and
+# last correlation.
+
+## GFC calculations
+gfc_df <- dcc.time.var.cor %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2007-06-22") & date <= as.Date("2009-06-23"))
+
+first_gfc <- gfc_df %>% slice(1) %>% pull(Rho)
+last_gfc <- gfc_df %>% slice(n()) %>% pull(Rho)
+max_gfc <- max(gfc_df$Rho)
+
+max_gfc - first_gfc
+last_gfc - first_gfc
+
+
+## Covid-19 calculations
+covid_df <- dcc.time.var.cor %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2020-02-15") & date <= as.Date("2021-12-01"))
+
+first_covid <- covid_df %>% slice(1) %>% pull(Rho)
+last_covid <- covid_df %>% slice(n()) %>% pull(Rho)
+max_covid <- max(covid_df$Rho)
+
+max_covid - first_covid
+last_covid - first_covid
+```
+
 
 ### BEKK-GARCH
 
