@@ -658,8 +658,76 @@ max_covid - first_covid
 last_covid - first_covid
 ```
 
-
 ## BEKK-GARCH
+
+```{r, include=FALSE}
+garch_df <- joinedDF %>% 
+    select(c(SP500, JSE40, ZARUSD)) %>% 
+    rename(SP = SP500,
+           JSE = JSE40,
+           ZARUSD = ZARUSD) 
+
+garch_matrix <- as.matrix(garch_df)
+estimated <- mgarchBEKK::BEKK(garch_matrix)
+```
+
+```{r}
+BEKK_estimates <- estimated$est.params
+names(BEKK_estimates) <- c("Constants", "ARCH estimates", "GARCH estimates")
+
+BEKK_se <- estimated$asy.se.coef
+names(BEKK_se) <- c("Constants' standard errors", "ARCH standard errors", 
+                    "GARCH standard errors")
+
+
+matrix_rename <- function(matrix, headers){
+    colnames(matrix) <- headers
+    rownames(matrix) <- headers
+    return(matrix)
+}
+
+renamed_BEKK_estimates <- lapply(BEKK_estimates, matrix_rename, 
+                                 headers = c("SP", "JSE", "Rand"))
+renamed_BEKK_se <- lapply(BEKK_se, matrix_rename, 
+                          headers = c("SP", "JSE", "Rand"))
+```
+
+```{r, results='asis'}
+table <- xtable(renamed_BEKK_estimates$Constants, caption = "BEKK-GARCH Constants \\label{tab10}", digits = c(0,4,4,4))
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = TRUE
+             )
+```
+```{r, results='asis'}
+table <- xtable(renamed_BEKK_estimates$`ARCH estimates`, caption = "BEKK-GARCH ARCH estimates \\label{tab11}", digits = c(0,4,4,4))
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = TRUE
+             )
+```
+```{r, results='asis'}
+table <- xtable(renamed_BEKK_estimates$`GARCH estimates`, caption = "BEKK-GARCH GARCH estimates \\label{tab12}", digits = c(0,4,4,4))
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = TRUE
+             )
+```
 
 # Conclusion
 
