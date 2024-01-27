@@ -366,6 +366,8 @@ where $C$, $A$ and $B$ are coefficient matrices. Notably, $C$ is a triangular ma
 
 # Results
 
+Like stated above, I first employ stratification analysis. I then fit three multivariate GARCH models. The univariate specification these models are based on are selected by fitting different specifications and selecting the best one based on various selection criteria. These results show a gjrGARCH to be the best specification. \footnote{These results are not reported in this document since they serve little purpose other than model construction. For a full table showing the test results see : \url{https://github.com/RuanGeldenhuys/fmx_project_22550801}}.
+
 ## Stratification
 
 Stratification analyses allows for the investigation of a particular assets volatility during a particular period of volatility of another asset. While such analysis does not lend itself to causal interpretation regarding volatility spillovers, it does paint a picture of whether the indices that are being investigated tend to have periods of high or low volatility at the same time. In turn, this could point to a direction of interconnectedness between markets which can then be revealed through more robust analysis. The stratification analyses follows below.
@@ -386,7 +388,7 @@ Idxs <- joinedDF %>%
 # of high and low volatility periods for a specific series
 
 results_SP <- analyze_volatility_periods(joinedDF, "SP500", Idxs)
-table <- xtable(results_SP$HighVol, caption = "S\\&P 500 High Volatility")
+table <- xtable(results_SP$HighVol, caption = "S\\&P 500 High Volatility \\label{tab4}")
 print.xtable(table,
              # tabular.environment = "longtable",
              floating = TRUE,
@@ -396,7 +398,7 @@ print.xtable(table,
              caption.placement = 'top',
              include.rownames = FALSE
              )
-table <- xtable(results_SP$LowVol, caption = "S\\&P 500 Low Volatility")
+table <- xtable(results_SP$LowVol, caption = "S\\&P 500 Low Volatility \\label{tab5}")
 print.xtable(table,
              # tabular.environment = "longtable",
              floating = TRUE,
@@ -421,9 +423,11 @@ print.xtable(table,
 
 ```
 
+Tables \ref{tab4} and \ref{tab5} showcase the stratification of high and low volatility of the S\&P 500. The "SD" column report volatility during that particular period while the "Full\_SD" column shows the volatility for the entire sample period. As such a ratio greater than 1 indicates that particular index or series has a higher than usual volatility in a given period. Analysing periods of high volatility of the S\&P show both the JSE and the ZAR/USD also have significantly higher volatility in these periods, indicated by the ratio > 1. The JSE also reports lower volatility in periods where the S\&P 500 is less volatile, although the same is not true for the exchange rate. 
+
 ```{r, results='asis'}
 results_JSE <- analyze_volatility_periods(joinedDF, "JSE40", Idxs)
-table <- xtable(results_JSE$HighVol, caption = "JSE Top 40 High Volatility")
+table <- xtable(results_JSE$HighVol, caption = "JSE Top 40 High Volatility \\label{tab6}")
 print.xtable(table,
              # tabular.environment = "longtable",
              floating = TRUE,
@@ -433,7 +437,7 @@ print.xtable(table,
              caption.placement = 'top',
              include.rownames = FALSE
              )
-table <- xtable(results_JSE$LowVol, caption = "JSE Top 40 Low Volatility")
+table <- xtable(results_JSE$LowVol, caption = "JSE Top 40 Low Volatility \\label{tab7}")
 print.xtable(table,
              # tabular.environment = "longtable",
              floating = TRUE,
@@ -445,10 +449,12 @@ print.xtable(table,
              )
 
 ```
+
+Tables \ref{tab6} and \ref{tab7} now report the stratification for the JSE Top 40. For high volatility periods, the relationship holds with both the S\&P 500 and the exchange rate showcasing higher than average volatility. In low volatility periods, again, both the S\&P and the ZAR/USD report lower than usual volatility. Like this stated earlier, this does not allow for causal interpretation, but it does point to the fact that the two indices tend to be in periods of high or low volatility at the same time.
 
 ```{r, results='asis'}
 results_rand <- analyze_volatility_periods(joinedDF, "ZARUSD", Idxs)
-table <- xtable(results_rand$HighVol, caption = "ZAR/USD High Volatility")
+table <- xtable(results_rand$HighVol, caption = "ZAR/USD High Volatility \\label{tab8}")
 print.xtable(table,
              # tabular.environment = "longtable",
              floating = TRUE,
@@ -458,7 +464,7 @@ print.xtable(table,
              caption.placement = 'top',
              include.rownames = FALSE
              )
-table <- xtable(results_rand$LowVol, caption = "ZAR/USD Low Volatility")
+table <- xtable(results_rand$LowVol, caption = "ZAR/USD Low Volatility \\label{tab9}")
 print.xtable(table,
              # tabular.environment = "longtable",
              floating = TRUE,
@@ -471,11 +477,142 @@ print.xtable(table,
 
 ```
 
-
+Lastly, analysing stratification of the ZAR/USD reveals an interesting result. In periods of high volatility (Table \ref{tab8}), both the JSE and S\&P also report higher volatility. However this volatility is only slighter higher, with both indices reporting a standard deviation that is only 0.01 larger than the full sample. Conversely, in periods of low volatility (Table \ref{tab9}), these indices show significant lower volatility as well. This indicates that a highly volatile Rand does not necessarily mean volatile stock markets, however a low volatile Rand tends to be associated with low volatility in these indices.
 
 ## DCC
 
+```{r, include=FALSE}
+garch_xts <- joinedDF %>% 
+    rename(SP = SP500,
+           JSE = JSE40,
+           ZARUSD = ZARUSD) %>% 
+    tbl2xts::tbl_xts()
+
+DCCpre <- dccPre(garch_xts, include.mean = T, p = 0)
+StdRes <- DCCpre$sresi
+
+DCC <- dccFit(StdRes, type="Engle")
+
+Rhot <- DCC$rho.t
+
+ReturnSeries = garch_xts
+DCC.TV.Cor = Rhot
+
+
+
+
+Rhot <- 
+  renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = Rhot)
+
+```
+
+
+```{r Figure4, warning =  FALSE, fig.align = 'center', fig.cap = "DCC GARCH \\label{Figure4}", fig.ext = 'png', fig.height = 5, fig.width = 6}
+dcc_JSE <- ggplot(Rhot %>% filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
+    geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
+    
+    annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
+    ymin = -Inf, ymax = Inf, fill = "red", alpha = 0.4)+
+    annotate("rect", xmin = as.Date("2020-03-15"), xmax = as.Date("2021-12-01"),
+    ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.4)+
+    
+    theme_fmx()+
+    ggtitle("Dynamic Conditional Correlations: JSE")+
+    scale_x_date(date_breaks = "4 years", date_labels = "%Y")
+
+finplot(dcc_JSE)
+```
+
+The dynamic conditional correlation for the JSE Top 40, as reported by the DCC-GARCH model, are shown in Figure \ref{Figure4}. Intuitively, it shows a noise reduced correlation between the JSE and other variables in the system over time. What is immediately clear is that the JSE shares a significantly higher correlation with the S\&P 500, than it does with the ZAR/USD exchange rate. In fact, the correlation with the ZAR/USD is negative for much of the sample period. This result does make sense since "increases" in the exchange rate indicate a depreciation of the Rand.
+
+Analyzing the crisis periods, particularly in the context of the correlation between the JSE Top 40 and the S\&P 500, reveals an interesting result. Note, the GFC period is indicated by the red shaded area, while Covid-19 is shown in blue. During the GFC the correlation jumps up initially, then turns sharply downward, before tending upward for the rest of the crisis. The difference in correlation between the start of the crises and the maximum correlation is equal to 0.098, while the difference between the start and end of the crisis is equal to 0.081.
+
+Correlation during Covid-19 behaves differently. Here the model reports a sharp increase in correlation that fades out as the crisis draws to a close. As such the maximum correlation appears early in the crisis period. The difference in correlation between the start of the crisis period and the maximum is equal to 0.158. The difference between the start and end of the crisis is smaller at 0.056.
+
+```{r, include=FALSE}
+# This code extracts the correlations for the GFC and COvid-19.
+# It then calculates the difference between the first and max, and the first and
+# last correlation.
+
+## GFC calculations
+gfc_df <- Rhot %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2007-06-22") & date <= as.Date("2009-06-23"))
+
+first_gfc <- gfc_df %>% slice(1) %>% pull(Rho)
+last_gfc <- gfc_df %>% slice(n()) %>% pull(Rho)
+max_gfc <- max(gfc_df$Rho)
+
+max_gfc - first_gfc
+last_gfc - first_gfc
+
+
+## Covid-19 calculations
+covid_df <- Rhot %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2020-02-15") & date <= as.Date("2021-12-01"))
+
+first_covid <- covid_df %>% slice(1) %>% pull(Rho)
+last_covid <- covid_df %>% slice(n()) %>% pull(Rho)
+max_covid <- max(covid_df$Rho)
+
+max_covid - first_covid
+last_covid - first_covid
+
+```
+
+
 ## Go-GARCH
+
+```{r, include=FALSE}
+uspec <- ugarchspec(variance.model = list(model = "gjrGARCH", garchOrder = c(1, 1)), 
+                    mean.model = list(armaOrder = c(1, 0), include.mean = TRUE), 
+                    distribution.model = "sstd")
+
+multi_univ_garch_spec <- multispec(replicate(ncol(garch_xts), uspec))
+
+spec.dcc = dccspec(multi_univ_garch_spec, dccOrder = c(1, 1), distribution = "mvnorm", 
+                   lag.criterion = c("AIC", "HQ", "SC", "FPE")[1], 
+                   model = c("DCC", "aDCC")[1])
+
+cl = makePSOCKcluster(10)
+
+multf = multifit(multi_univ_garch_spec, garch_xts, cluster = cl)
+
+fit.dcc = dccfit(spec.dcc, data = garch_xts, solver = "solnp", 
+    cluster = cl, fit.control = list(eval.se = FALSE), fit = multf)
+
+RcovList <- rcov(fit.dcc)  # This is now a list of the monthly covariances of our DCC model series.
+covmat = matrix(RcovList, nrow(garch_xts), ncol(garch_xts) * ncol(garch_xts), 
+    byrow = TRUE)
+mc1 = MCHdiag(garch_xts, covmat)
+
+dcc.time.var.cor <- rcor(fit.dcc)
+
+dcc.time.var.cor <- aperm(dcc.time.var.cor, c(3, 2, 1))
+dim(dcc.time.var.cor) <- c(nrow(dcc.time.var.cor), ncol(dcc.time.var.cor)^2)
+
+dcc.time.var.cor <- renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = dcc.time.var.cor)
+```
+
+```{r Figure5, warning =  FALSE, fig.align = 'center', fig.cap = "GO-GARCH \\label{Figure5}", fig.ext = 'png', fig.height = 5, fig.width = 6}
+
+dcc_JSE_gjr <- ggplot(dcc.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
+    geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
+    
+    annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
+    ymin = -Inf, ymax = Inf, fill = "red", alpha = 0.4)+
+    annotate("rect", xmin = as.Date("2020-03-15"), xmax = as.Date("2021-12-01"),
+    ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.4)+
+    
+    theme_fmx()+
+    ggtitle("Dynamic Conditional Correlations: JSE")+
+    scale_x_date(date_breaks = "4 years", date_labels = "%Y")
+
+finplot(dcc_JSE_gjr)
+
+
+```
 
 ## BEKK-GARCH
 

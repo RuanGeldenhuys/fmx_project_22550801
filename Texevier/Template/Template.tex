@@ -483,6 +483,13 @@ constraints. Lastly, estimation is done via maximum likelihood.
 \hypertarget{results}{%
 \section{Results}\label{results}}
 
+Like stated above, I first employ stratification analysis. I then fit
+three multivariate GARCH models. The univariate specification these
+models are based on are selected by fitting different specifications and
+selecting the best one based on various selection criteria. These
+results show a gjrGARCH to be the best specification.
+\footnote{These results are not reported in this document since they serve little purpose other than model construction. For a full table showing the test results see : \url{https://github.com/RuanGeldenhuys/fmx_project_22550801}}.
+
 \hypertarget{stratification}{%
 \subsection{Stratification}\label{stratification}}
 
@@ -497,7 +504,7 @@ more robust analysis. The stratification analyses follows below.
 
 \begin{table}[H]
 \centering
-\caption{S\&P 500 High Volatility} 
+\caption{S\&P 500 High Volatility \label{tab4}} 
 \begin{tabular}{lrrlr}
   \hline
 Index & SD & Full\_SD & Period & Ratio \\ 
@@ -509,7 +516,7 @@ JSE40 & 0.23 & 0.17 & High\_Vol SP500 & 1.35 \\
 \end{table}
 \begin{table}[H]
 \centering
-\caption{S\&P 500 Low Volatility} 
+\caption{S\&P 500 Low Volatility \label{tab5}} 
 \begin{tabular}{lrrlr}
   \hline
 Index & SD & Full\_SD & Period & Ratio \\ 
@@ -520,9 +527,21 @@ ZARUSD & 0.16 & 0.16 & Low\_Vol SP500 & 1.03 \\
 \end{tabular}
 \end{table}
 
+Tables \ref{tab4} and \ref{tab5} showcase the stratification of high and
+low volatility of the S\&P 500. The ``SD'' column report volatility
+during that particular period while the ``Full\_SD'' column shows the
+volatility for the entire sample period. As such a ratio greater than 1
+indicates that particular index or series has a higher than usual
+volatility in a given period. Analysing periods of high volatility of
+the S\&P show both the JSE and the ZAR/USD also have significantly
+higher volatility in these periods, indicated by the ratio
+\textgreater{} 1. The JSE also reports lower volatility in periods where
+the S\&P 500 is less volatile, although the same is not true for the
+exchange rate.
+
 \begin{table}[H]
 \centering
-\caption{JSE Top 40 High Volatility} 
+\caption{JSE Top 40 High Volatility \label{tab6}} 
 \begin{tabular}{lrrlr}
   \hline
 Index & SD & Full\_SD & Period & Ratio \\ 
@@ -534,7 +553,7 @@ SP500 & 0.20 & 0.15 & High\_Vol JSE40 & 1.37 \\
 \end{table}
 \begin{table}[H]
 \centering
-\caption{JSE Top 40 Low Volatility} 
+\caption{JSE Top 40 Low Volatility \label{tab7}} 
 \begin{tabular}{lrrlr}
   \hline
 Index & SD & Full\_SD & Period & Ratio \\ 
@@ -545,9 +564,18 @@ ZARUSD & 0.13 & 0.16 & Low\_Vol JSE40 & 0.82 \\
 \end{tabular}
 \end{table}
 
+Tables \ref{tab6} and \ref{tab7} now report the stratification for the
+JSE Top 40. For high volatility periods, the relationship holds with
+both the S\&P 500 and the exchange rate showcasing higher than average
+volatility. In low volatility periods, again, both the S\&P and the
+ZAR/USD report lower than usual volatility. Like this stated earlier,
+this does not allow for causal interpretation, but it does point to the
+fact that the two indices tend to be in periods of high or low
+volatility at the same time.
+
 \begin{table}[H]
 \centering
-\caption{ZAR/USD High Volatility} 
+\caption{ZAR/USD High Volatility \label{tab8}} 
 \begin{tabular}{lrrlr}
   \hline
 Index & SD & Full\_SD & Period & Ratio \\ 
@@ -559,7 +587,7 @@ JSE40 & 0.18 & 0.17 & High\_Vol ZARUSD & 1.04 \\
 \end{table}
 \begin{table}[H]
 \centering
-\caption{ZAR/USD Low Volatility} 
+\caption{ZAR/USD Low Volatility \label{tab9}} 
 \begin{tabular}{lrrlr}
   \hline
 Index & SD & Full\_SD & Period & Ratio \\ 
@@ -570,11 +598,66 @@ JSE40 & 0.13 & 0.17 & Low\_Vol ZARUSD & 0.79 \\
 \end{tabular}
 \end{table}
 
+Lastly, analysing stratification of the ZAR/USD reveals an interesting
+result. In periods of high volatility (Table \ref{tab8}), both the JSE
+and S\&P also report higher volatility. However this volatility is only
+slighter higher, with both indices reporting a standard deviation that
+is only 0.01 larger than the full sample. Conversely, in periods of low
+volatility (Table \ref{tab9}), these indices show significant lower
+volatility as well. This indicates that a highly volatile Rand does not
+necessarily mean volatile stock markets, however a low volatile Rand
+tends to be associated with low volatility in these indices.
+
 \hypertarget{dcc}{%
 \subsection{DCC}\label{dcc}}
 
+\begin{figure}[H]
+
+{\centering \includegraphics{Template_files/figure-latex/Figure4-1} 
+
+}
+
+\caption{DCC GARCH \label{Figure4}}\label{fig:Figure4}
+\end{figure}
+
+The dynamic conditional correlation for the JSE Top 40, as reported by
+the DCC-GARCH model, are shown in Figure \ref{Figure4}. Intuitively, it
+shows a noise reduced correlation between the JSE and other variables in
+the system over time. What is immediately clear is that the JSE shares a
+significantly higher correlation with the S\&P 500, than it does with
+the ZAR/USD exchange rate. In fact, the correlation with the ZAR/USD is
+negative for much of the sample period. This result does make sense
+since ``increases'' in the exchange rate indicate a depreciation of the
+Rand.
+
+Analyzing the crisis periods, particularly in the context of the
+correlation between the JSE Top 40 and the S\&P 500, reveals an
+interesting result. Note, the GFC period is indicated by the red shaded
+area, while Covid-19 is shown in blue. During the GFC the correlation
+jumps up initially, then turns sharply downward, before tending upward
+for the rest of the crisis. The difference in correlation between the
+start of the crises and the maximum correlation is equal to 0.098, while
+the difference between the start and end of the crisis is equal to
+0.081.
+
+Correlation during Covid-19 behaves differently. Here the model reports
+a sharp increase in correlation that fades out as the crisis draws to a
+close. As such the maximum correlation appears early in the crisis
+period. The difference in correlation between the start of the crisis
+period and the maximum is equal to 0.158. The difference between the
+start and end of the crisis is smaller at 0.056.
+
 \hypertarget{go-garch-1}{%
 \subsection{Go-GARCH}\label{go-garch-1}}
+
+\begin{figure}[H]
+
+{\centering \includegraphics{Template_files/figure-latex/Figure5-1} 
+
+}
+
+\caption{GO-GARCH \label{Figure5}}\label{fig:Figure5}
+\end{figure}
 
 \hypertarget{bekk-garch-1}{%
 \subsection{BEKK-GARCH}\label{bekk-garch-1}}
