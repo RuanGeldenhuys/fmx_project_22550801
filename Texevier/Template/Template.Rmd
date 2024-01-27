@@ -623,7 +623,9 @@ finplot(gog_JSE_gjr)
 
 ```
 
-The dynamic conditional correlations for the JSE Top 40, as estimated by the GO-GARCH model is reported in Figure \ref{Figure5}. It is immediately apparent that the exchange rate... As such the GO-GARCH serves as a robustness check for the results found by the DCC model. The difference in correlation between the start and maximum of the GFC is equal to 0.075, while the difference between the first and last correlation is equal to 0.063. For Covid-19, the difference between the first correlation and maximum correlation is 0.115, and the difference between the first and last is equal to 0.01.
+The dynamic conditional correlations for the JSE Top 40, as estimated by the GO-GARCH model is reported in Figure \ref{Figure5}. It is immediately apparent that the correlation with the exchange rate is much more volatile than in the DCC model. It is still negative for most of the sample, however experiences large spikes, turning the relationship positive. The correlation with the S\&P 500 follows a similar time path to the DCC model, in crises periods. As such the GO-GARCH serves as a robustness check for the results found by the DCC model. 
+
+A key difference between the model is the fact that the jump in correlation during crisis periods are more pronounced. The difference in correlation between the start and maximum of the GFC is equal to 0.362, while the difference between the first and last correlation is equal to 0.219. For Covid-19, the difference between the first correlation and maximum correlation is 0.278, and interestingly the difference between the first and last is negative at -0.011.
 
 ```{r, include=FALSE}
 # This code extracts the correlations for the GFC and COvid-19.
@@ -631,7 +633,7 @@ The dynamic conditional correlations for the JSE Top 40, as estimated by the GO-
 # last correlation.
 
 ## GFC calculations
-gfc_df <- dcc.time.var.cor %>% 
+gfc_df <- gog.time.var.cor %>% 
     filter(Pairs == "JSE_SP") %>% 
     filter(date >= as.Date("2007-06-22") & date <= as.Date("2009-06-23"))
 
@@ -644,7 +646,7 @@ last_gfc - first_gfc
 
 
 ## Covid-19 calculations
-covid_df <- dcc.time.var.cor %>% 
+covid_df <- gog.time.var.cor %>% 
     filter(Pairs == "JSE_SP") %>% 
     filter(date >= as.Date("2020-02-15") & date <= as.Date("2021-12-01"))
 

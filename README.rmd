@@ -405,7 +405,7 @@ finplot(gog_JSE_gjr)
 # last correlation.
 
 ## GFC calculations
-gfc_df <- dcc.time.var.cor %>% 
+gfc_df <- gog.time.var.cor %>% 
     filter(Pairs == "JSE_SP") %>% 
     filter(date >= as.Date("2007-06-22") & date <= as.Date("2009-06-23"))
 
@@ -418,7 +418,7 @@ last_gfc - first_gfc
 
 
 ## Covid-19 calculations
-covid_df <- dcc.time.var.cor %>% 
+covid_df <- gog.time.var.cor %>% 
     filter(Pairs == "JSE_SP") %>% 
     filter(date >= as.Date("2020-02-15") & date <= as.Date("2021-12-01"))
 
