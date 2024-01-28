@@ -88,7 +88,7 @@ output:
     fig_width: 3.5 # Adjust default figure sizes. This can also be done in the chunks of the text.
     fig_height: 3.5
 abstract: |
-  I investigate the relationship between the voaltilities of S\&P 500 and the JSE Top 40. The purpose of this study is to investigate if this relationship changes in any significant way during the two biggest crisis periods in the last two decades, namely the Global Financial Crisis and Covid-19. I first do a stratification analysis which reveals significant evidence of these two indices sharing periods of high volatility. I then fit multiple multivariate GARCH models to further investigate the volatility relationship and find... 
+  I investigate the relationship between the S\&P 500 and the JSE Top 40, through various volatility modeling techniques. The purpose of this study is to investigate if this relationship changes in any significant way during the two biggest crisis periods in the last two decades, namely the Global Financial Crisis and Covid-19. I first do a stratification analysis which reveals significant evidence of these two indices sharing periods of high volatility. I then fit multiple multivariate GARCH models to further investigate the relationship and find conditional correlation to increase during crisis periods. Lastly, an investigation of volatility linkages reveals no evidence of volatility spillovers.
 ---
 
 <!-- First: Set your default preferences for chunk options: -->
@@ -127,7 +127,7 @@ list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.
 
 # Introduction \label{Introduction}
 
-
+In my honours thesis I investigate spillover effects from the S\&P 500 to the JSE Top 40, utilising a Structural VAR. Subsequently, in a time series econometrics essay I applied similar analysis, this time estimating a Bayesian VAR. Now, I turn to various volatility modeling methods in order to uncover new insights into the dynamics between these stock indices. The US stock market's position as a market leader is a well established fact within the literature. It therefore becomes imperative to understand our own local stock market's relationship with the US, especially in times of crisis. 
 
 # Data
 
@@ -361,8 +361,12 @@ In Equation \ref{eq6}, as before $\mu$ is the vector of mean returns and $\epsil
 H_t = C + A \epsilon_{t-1} \epsilon'_{t-1} A' + B H_{t-1} B' \label{eq7}
 \end{equation}
 
-where $C$, $A$ and $B$ are coefficient matrices. Notably, $C$ is a triangular matrix with positive diagonal elements, ensuring that it is positive definite. This attribute removes the need for additional constraints. Lastly, estimation is done via maximum likelihood. 
+where $C$, $A$ and $B$ are coefficient matrices. Notably, $C$ is a triangular matrix with positive diagonal elements, ensuring that it is positive definite. This attribute removes the need for additional constraints. Lastly, estimation is done via maximum likelihood. For interpretation purposes, the variance of he first asset return can be written as follows:
 
+\begin{align}
+\sigma^2_{1,t} = & C(1,1)^2 + A(1,1)^2\mu^2_{1,t-1} + 2A(1,1)A(2,1)\mu_{1,t-1}\mu_{2,t-1} + A(2,1)^2\mu^2_{2,t-1} \label{eq8}\\
+& + B(1,1)^2\sigma^2_{1,t-1} + 2B(1,1)B(2,1)\sigma_{1,t-1} + B(2,1)^2\sigma^2_{2,t-1} 
+\end{align}
 
 # Results
 
@@ -660,6 +664,8 @@ last_covid - first_covid
 
 ## BEKK-GARCH
 
+The estimated parameters for the BEKK-GARCH model can be found in Table \ref{tab10} below.
+
 ```{r, include=FALSE}
 garch_df <- joinedDF %>% 
     select(c(SP500, JSE40, ZARUSD)) %>% 
@@ -671,67 +677,73 @@ garch_matrix <- as.matrix(garch_df)
 estimated <- mgarchBEKK::BEKK(garch_matrix)
 ```
 
-```{r}
-BEKK_estimates <- estimated$est.params
-names(BEKK_estimates) <- c("Constants", "ARCH estimates", "GARCH estimates")
+```{r, results='asis'}
+extract_matrix_elements <- function(matrix, prefix) {
+  # Initialize an empty dataframe with appropriate column names
+  result_df <- data.frame(Position = character(), Value = numeric(), stringsAsFactors = FALSE)
 
-BEKK_se <- estimated$asy.se.coef
-names(BEKK_se) <- c("Constants' standard errors", "ARCH standard errors", 
-                    "GARCH standard errors")
-
-
-matrix_rename <- function(matrix, headers){
-    colnames(matrix) <- headers
-    rownames(matrix) <- headers
-    return(matrix)
+  # Loop through each element of the matrix
+  for (row in 1:nrow(matrix)) {
+    for (col in 1:ncol(matrix)) {
+      # Create a position string (e.g., "(2,1)")
+      position <- paste(prefix ,"(", row, ",", col, ")", sep = "")
+      
+      # Append the position and value to the dataframe
+      result_df <- rbind(result_df, data.frame(Position = position, Value = matrix[row, col]))
+    }
+  }
+  
+  return(result_df)
 }
 
-renamed_BEKK_estimates <- lapply(BEKK_estimates, matrix_rename, 
-                                 headers = c("SP", "JSE", "Rand"))
-renamed_BEKK_se <- lapply(BEKK_se, matrix_rename, 
-                          headers = c("SP", "JSE", "Rand"))
+garch_constants <- extract_matrix_elements(estimated$est.params[[1]], "C")
+garch_constants_se <- extract_matrix_elements(estimated$asy.se.coef[[1]], "C")
+
+garch_result_df <- left_join(garch_constants, garch_constants_se, by="Position") %>% 
+    filter(Value.x != 0)
+
+garch_amat <- extract_matrix_elements(estimated$est.params[[2]], "A")
+garch_amat_se <- extract_matrix_elements(estimated$asy.se.coef[[2]], "A")
+
+amat_joined <- left_join(garch_amat, garch_amat_se, by="Position")
+
+garch_bmat <- extract_matrix_elements(estimated$est.params[[3]], "B")
+garch_bmat_se <- extract_matrix_elements(estimated$asy.se.coef[[3]], "B")
+
+bmat_joined <- left_join(garch_bmat, garch_bmat_se, by="Position")
+
+garch_result_df <- rbind(garch_result_df, amat_joined)
+garch_result_df <- rbind(garch_result_df, bmat_joined)
+colnames(garch_result_df) <- c(" ", "Coefficient", "Std. Error")
+
+garch_results_final <- garch_result_df %>% 
+    mutate(TStat = Coefficient / `Std. Error`,
+           Significance = ifelse(abs(TStat) > 2.576, "***", 
+                                 ifelse(abs(TStat) > 1.96, "**", 
+                                        ifelse(abs(TStat) > 1.645, "*", ""))))
+
+table <- xtable(garch_results_final, caption = "BEKK-GARCH Results \\label{tab10}", digits = c(0,0,4,4,4,0))
+print.xtable(table,
+             # tabular.environment = "longtable",
+             floating = TRUE,
+             table.placement = 'H',
+             # scalebox = 0.3,
+             comment = FALSE,
+             caption.placement = 'top',
+             include.rownames = FALSE
+             )
+
 ```
 
-```{r, results='asis'}
-table <- xtable(renamed_BEKK_estimates$Constants, caption = "BEKK-GARCH Constants \\label{tab10}", digits = c(0,4,4,4))
-print.xtable(table,
-             # tabular.environment = "longtable",
-             floating = TRUE,
-             table.placement = 'H',
-             # scalebox = 0.3,
-             comment = FALSE,
-             caption.placement = 'top',
-             include.rownames = TRUE
-             )
-```
-```{r, results='asis'}
-table <- xtable(renamed_BEKK_estimates$`ARCH estimates`, caption = "BEKK-GARCH ARCH estimates \\label{tab11}", digits = c(0,4,4,4))
-print.xtable(table,
-             # tabular.environment = "longtable",
-             floating = TRUE,
-             table.placement = 'H',
-             # scalebox = 0.3,
-             comment = FALSE,
-             caption.placement = 'top',
-             include.rownames = TRUE
-             )
-```
-```{r, results='asis'}
-table <- xtable(renamed_BEKK_estimates$`GARCH estimates`, caption = "BEKK-GARCH GARCH estimates \\label{tab12}", digits = c(0,4,4,4))
-print.xtable(table,
-             # tabular.environment = "longtable",
-             floating = TRUE,
-             table.placement = 'H',
-             # scalebox = 0.3,
-             comment = FALSE,
-             caption.placement = 'top',
-             include.rownames = TRUE
-             )
-```
+Since the main goal of estimating a BEKK-GARCH model, in this essay, is to measure volatility spillovers, I focus on the B matrix of parameters as defined in Equation \ref{eq7}. Recall, Equation \ref{eq8} for details on interpretation. In this model the S\&P 500 is variable 1, the JSE Top 40 is variable 2, and the ZAR/USD exchange rate is variable 3. This means that coefficient of B(1,2) represents the volatility spillover from the S\&P 500 to the JSE Top 40. 
+
+An interesting result the model produces is that no volatility spillovers between stock indices are statistically significant. The only significant volatility spillover appears to be B(3,2), representing a spillover from the ZAR/USD to the JSE Top 40. This result is peculiar to say the least. One would expect there to exists some level of volatility spillovers between stock indices, especially from large markets like the S\&P 500 to significantly smaller markets like the JSE, as the literature has shown. Earlier models showed that a relationship between these indices do in fact exist, however this model was incapable of revealing such relationship between the volatilities. 
 
 # Conclusion
 
-I hope you find this template useful. Remember, stackoverflow is your friend - use it to find answers to questions. Feel free to write me a mail if you have any questions regarding the use of this package. To cite this package, simply type citation("Texevier") in Rstudio to get the citation for @Texevier (Note that uncited references in your bibtex file will not be included in References).
+In summary, I find the S\&P 500 and the JSE Top 40 to largely share periods of high and low volatility. These markets are highly correlated, as made evident by the DCC and GO-GARCH models. These model further reveal conditional correlation to have spikes during the Global Financial Crises and Covid-19. An analysis of volatility spillovers revealed evidence of spillovers from the ZAR/USD exchange rate, but not between stock indices. This result is perplexing as literature often reveals such relationship between the US and emerging market economies. 
+
+It is important to note that this analysis only included the largest stocks for each stock market. As such, no claims can be made regarding whether the dynamics revealed by these models will hold for lower market cap stocks. Additionally, no cross-country comparisons have been made. A study across multiple emerging markets, not only South Africa, is a likely area of future research. Lastly, if evidence of volatility spillovers is found an extension to time varying parameters could be beneficial in order to study the effect of crisis periods in more detail.
 
 <!-- Make title of bibliography here: -->
 
@@ -744,10 +756,4 @@ I hope you find this template useful. Remember, stackoverflow is your friend - u
 ::: {#refs}
 :::
 
-# Appendix {.unnumbered}
 
-## Appendix A {.unnumbered}
-
-Some appendix information here
-
-## Appendix B {.unnumbered}

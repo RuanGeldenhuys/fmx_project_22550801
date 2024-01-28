@@ -445,7 +445,60 @@ garch_df <- joinedDF %>%
 garch_matrix <- as.matrix(garch_df)
 estimated <- mgarchBEKK::BEKK(garch_matrix)
 
+estimated$asy.se.coef
+
+
 ```
+
+```{r}
+extract_matrix_elements <- function(matrix, prefix) {
+  # Initialize an empty dataframe with appropriate column names
+  result_df <- data.frame(Position = character(), Value = numeric(), stringsAsFactors = FALSE)
+
+  # Loop through each element of the matrix
+  for (row in 1:nrow(matrix)) {
+    for (col in 1:ncol(matrix)) {
+      # Create a position string (e.g., "(2,1)")
+      position <- paste(prefix ,"(", row, ",", col, ")", sep = "")
+      
+      # Append the position and value to the dataframe
+      result_df <- rbind(result_df, data.frame(Position = position, Value = matrix[row, col]))
+    }
+  }
+  
+  return(result_df)
+}
+
+garch_constants <- extract_matrix_elements(estimated$est.params[[1]], "C")
+garch_constants_se <- extract_matrix_elements(estimated$asy.se.coef[[1]], "C")
+
+garch_result_df <- left_join(garch_constants, garch_constants_se, by="Position") %>% 
+    filter(Value.x != 0)
+
+garch_amat <- extract_matrix_elements(estimated$est.params[[2]], "A")
+garch_amat_se <- extract_matrix_elements(estimated$asy.se.coef[[2]], "A")
+
+amat_joined <- left_join(garch_amat, garch_amat_se, by="Position")
+
+garch_bmat <- extract_matrix_elements(estimated$est.params[[3]], "B")
+garch_bmat_se <- extract_matrix_elements(estimated$asy.se.coef[[3]], "B")
+
+bmat_joined <- left_join(garch_bmat, garch_bmat_se, by="Position")
+
+garch_result_df <- rbind(garch_result_df, amat_joined)
+garch_result_df <- rbind(garch_result_df, bmat_joined)
+colnames(garch_result_df) <- c(" ", "Coefficient", "Std. Error")
+
+garch_results_final <- garch_result_df %>% 
+    mutate(TStat = Coefficient / `Std. Error`,
+           Significance = ifelse(abs(TStat) > 2.576, "***", 
+                                 ifelse(abs(TStat) > 1.96, "**", 
+                                        ifelse(abs(TStat) > 1.645, "*", ""))))
+
+
+kable(garch_results_final, caption = "BEKK-GARCH results")
+```
+
 
 ```{r, results='asis'}
 BEKK_estimates <- estimated$est.params
