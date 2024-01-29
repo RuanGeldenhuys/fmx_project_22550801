@@ -3,7 +3,7 @@
 # Remove comments and add values where applicable.
 # The descriptions below should be self-explanatory
 
-title: "Volatility Spillovers from US to SA Markets"
+title: "S\\&P and JSE Interlinkages: Evidence from Volatility Modeling"
 #subtitle: "This will appear as Right Header"
 
 documentclass: "elsarticle"
@@ -88,7 +88,7 @@ output:
     fig_width: 3.5 # Adjust default figure sizes. This can also be done in the chunks of the text.
     fig_height: 3.5
 abstract: |
-  I investigate the relationship between the S\&P 500 and the JSE Top 40, through various volatility modeling techniques. The purpose of this study is to investigate if this relationship changes in any significant way during the two biggest crisis periods in the last two decades, namely the Global Financial Crisis and Covid-19. I first do a stratification analysis which reveals significant evidence of these two indices sharing periods of high volatility. I then fit multiple multivariate GARCH models to further investigate the relationship and find conditional correlation to increase during crisis periods. Lastly, an investigation of volatility linkages reveals no evidence of volatility spillovers.
+  I investigate the relationship between the S\&P 500 and the JSE Top 40, through various volatility modeling techniques. The purpose of this study is to investigate if this relationship changes in any significant way during the two biggest crisis periods in the last two decades, namely the Global Financial Crisis and Covid-19. I first do a stratification analysis which reveals significant evidence of these two indices sharing periods of high and low volatility. I then fit multiple multivariate GARCH models to further investigate the relationship and find conditional correlation to increase during crisis periods. Lastly, an investigation of volatility linkages reveals no evidence of volatility spillovers.
 ---
 
 <!-- First: Set your default preferences for chunk options: -->
@@ -127,13 +127,15 @@ list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.
 
 # Introduction \label{Introduction}
 
-In my honours thesis I investigate spillover effects from the S\&P 500 to the JSE Top 40, utilising a Structural VAR. Subsequently, in a time series econometrics essay I applied similar analysis, this time estimating a Bayesian VAR. Now, I turn to various volatility modeling methods in order to uncover new insights into the dynamics between these stock indices. The US stock market's position as a market leader is a well established fact within the literature. It therefore becomes imperative to understand our own local stock market's relationship with the US, especially in times of crisis. 
+In my honours thesis I investigate spillover effects from the S\&P 500 to the JSE Top 40, utilising a Structural VAR. Subsequently, in a time series econometrics essay I applied similar analysis, this time estimating a Bayesian VAR. Now, I turn to various volatility modeling methods in order to uncover new insights into the dynamics between these stock indices. The US stock market's position as a market leader is a well established fact within the literature [@Ehrmann2011]. It therefore becomes imperative to understand our own local stock market's relationship with the US, especially in times of crisis. 
+
+The concept of stock market contagion is particularly evident from mature to emerging markets, as demonstrated through the use of a BEKK-GARCH methodology in a study by @Beirne2013. GARCH models are frequently used to examine volatility spillovers. Specifically, a study focused on South Africa utilized a DCC GARCH model to identify various interlinkages among the equity markets of BRICS countries [@BONGABONGA2018]. Additionally, instances of structural breaks during crisis periods, like the GFC, encompassing both return and volatility spillovers, are commonly observed, as indicated in the findings of @Mensi2016 and @SuiSun2016. Consequently, this body of literature provides the justification for the subsequent analysis. \footnote{For a survey on financial contagion and the associated methodologies,  see @Pericoli2003 and @Dungey2004}
 
 # Data
 
-Three return series are used in the analysis that follows. These are the monthly returns for the S\&P 500 and the JSE Top 40, as well as thhe ZAR/USD exchange rate. The exchange rate is represented as the amount of Rands required to buy one US Dollar. Since the series is represented as a growth rate, a postive growth rate represents a depreciation of the Rand, and conversely, an appreciation of the Dollar. The inclusion of an exchange rate serves primarily as a control variable and as such analysis regarding the exchange rate is kept to a minimum in the final analysis. The returns for these 3 series' are visualised below in Figures \ref{Figure1} to \ref{Figure3}.
+Three return series are used in the analysis that follows. These are the monthly returns for the S\&P 500 and the JSE Top 40, as well as thhe ZAR/USD exchange rate. The exchange rate is represented as the amount of Rands required to buy one US Dollar. Since the series is represented as a growth rate, a positive growth rate represents a depreciation of the Rand, and conversely, an appreciation of the Dollar. The inclusion of an exchange rate serves primarily as a control variable and as such analysis regarding the exchange rate is kept to a minimum in the final analysis. The returns for these 3 series' are visualised below in Figures \ref{Figure1} to \ref{Figure3}.
 
-```{r Figure1, warning =  FALSE, fig.align = 'center', fig.cap = "S\\&P 500 Returns \\label{Figure1}", fig.ext = 'png', fig.height = 5, fig.width = 6}
+```{r Figure1, warning =  FALSE, fig.align = 'center', fig.cap = "S\\&P 500 Returns \\label{Figure1}", fig.ext = 'png', fig.height = 4, fig.width = 5}
 
 global_indices <- readRDS("data/Global_Indices.rds")
 local_indices <- readRDS("data/LCL_Indices.rds")
@@ -175,7 +177,7 @@ returnplots$`S&P 500`
 
 ```
 
-```{r Figure2, warning =  FALSE, fig.align = 'center', fig.cap = "JSE Top 40 Returns \\label{Figure2}", fig.ext = 'png', fig.height = 5, fig.width = 6}
+```{r Figure2, warning =  FALSE, fig.align = 'center', fig.cap = "JSE Top 40 Returns \\label{Figure2}", fig.ext = 'png', fig.height = 4, fig.width = 5}
 
 returnplots$`JSE Top 40`
 
@@ -183,7 +185,7 @@ returnplots$`JSE Top 40`
 
 Not much information can be revealed through simply observing the returns over time. However, when investigating the squared returns as a measure of volatility, it is clear to see that the JSE Top 40 is substantially more volatile than the S\&P 500. This result is reinforced by Table \ref{tab1}, where the JSE showcases a standard deviation considerably higher than that of the S\&P. Interestingly, the JSE Top 40 showcases higher average monthly returns, however that comes at the cost of the increased volatility as described above. Lastly, as shown in Table \ref{tab1} the S\&P experienced the largest draw down, while the JSE experienced the largest uptick.
 
-```{r Figure3, warning =  FALSE, fig.align = 'center', fig.cap = "ZAR/USD Returns \\label{Figure3}", fig.ext = 'png', fig.height = 5, fig.width = 6}
+```{r Figure3, warning =  FALSE, fig.align = 'center', fig.cap = "ZAR/USD Returns \\label{Figure3}", fig.ext = 'png', fig.height = 4, fig.width = 5}
 
 returnplots$`USD/ZAR`
 
@@ -229,7 +231,7 @@ table <- xtable(stats_df, caption = "Summary Statistics \\label{tab1}", digits =
 
 ```
 
-Before GARCH models can be fitted, ARCH tests need to be conducted in order to see if controlling for conditional heteroskedasticity is appropriate. I employ two tests. First, a univariate Ljung-Box test is conducted on each series. Practically, to test for ARCH effects a simple AR(1) model is fitted for each series and then Ljung-Box tests are done on the residuals of each AR(1). Next, multivariate Portmanteau tests are conducted to incorporate all variables simultaneously. As outlined by @Tsay2014, 3 tests are tun. The results can found in the tables below
+Before GARCH models can be fitted, ARCH tests need to be conducted in order to see if controlling for conditional heteroskedasticity is appropriate. I employ two tests. First, a univariate Ljung-Box test is conducted on each series. Practically, to test for ARCH effects, a simple AR(1) model is fitted for each series and then Ljung-Box tests are done on the residuals of each AR(1). Next, multivariate Portmanteau tests are conducted to incorporate all variables simultaneously. As outlined by @Tsay2014, 3 tests are tun. The results can found in the tables below
 
 ```{r, results='asis'}
 ret_df <- joinedDF %>% 
@@ -349,7 +351,7 @@ where $\sigma^2_{it}$ is the conditional variance of $F_{it}$. In order to estim
 
 ## BEKK-GARCH
 
-The BEKK-GARCH models, initially developed by @Bekk1995, are designed specifically to study spillovers between series. The model's ability to capture dynamic covariances and correlations makes it particularly useful for analyzing the interdependencies in financial markets, especially in the context of crises periods. As before consider $n$ assets with returns, $R_t = (R_{1t}, R_{2t}, ... R_{nt})$. For a GARCH(1,1) these returns are given by:
+The BEKK-GARCH models, initially developed by @Bekk1995, are designed specifically to study spillovers between series. The model's ability to capture dynamic covariances and correlations makes it particularly useful for analyzing the interdependencies in financial markets, especially in the context of crises periods. As before, consider $n$ assets with returns, $R_t = (R_{1t}, R_{2t}, ... R_{nt})$. For a GARCH(1,1) these returns are given by:
 
 \begin{equation}
 R_t = \mu + \epsilon_t, \quad \epsilon_t = H_t^{1/2} z_t, \quad z_t \sim N(0, I) \label{eq6}
@@ -361,7 +363,7 @@ In Equation \ref{eq6}, as before $\mu$ is the vector of mean returns and $\epsil
 H_t = C + A \epsilon_{t-1} \epsilon'_{t-1} A' + B H_{t-1} B' \label{eq7}
 \end{equation}
 
-where $C$, $A$ and $B$ are coefficient matrices. Notably, $C$ is a triangular matrix with positive diagonal elements, ensuring that it is positive definite. This attribute removes the need for additional constraints. Lastly, estimation is done via maximum likelihood. For interpretation purposes, the variance of he first asset return can be written as follows:
+where $C$, $A$ and $B$ are coefficient matrices. Notably, $C$ is a triangular matrix with positive diagonal elements, ensuring that it is positive definite. This attribute removes the need for additional constraints. Lastly, estimation is done via maximum likelihood. For interpretation purposes, the variance of the first asset's returns can be written as follows:
 
 \begin{align}
 \sigma^2_{1,t} = & C(1,1)^2 + A(1,1)^2\mu^2_{1,t-1} + 2A(1,1)A(2,1)\mu_{1,t-1}\mu_{2,t-1} + A(2,1)^2\mu^2_{2,t-1} \label{eq8}\\
@@ -540,7 +542,7 @@ dcc_JSE_gjr <- ggplot(dcc.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), 
 finplot(dcc_JSE_gjr)
 ```
 
-The dynamic conditional correlation for the JSE Top 40, as reported by the DCC-GARCH model, are shown in Figure \ref{Figure4}. Intuitively, it shows a noise reduced correlation between the JSE and other variables in the system over time. What is immediately clear is that the JSE shares a significantly higher correlation with the S\&P 500, than it does with the ZAR/USD exchange rate. In fact, the correlation with the ZAR/USD is negative for much of the sample period. This result does make sense since "increases" in the exchange rate indicate a depreciation of the Rand.
+The dynamic conditional correlation for the JSE Top 40, as reported by the DCC-GARCH model, is shown in Figure \ref{Figure4}. Intuitively, it shows a noise reduced correlation between the JSE and other variables in the system over time. What is immediately clear is that the JSE shares a significantly higher correlation with the S\&P 500, than it does with the ZAR/USD exchange rate. In fact, the correlation with the ZAR/USD is negative for much of the sample period. This result does make sense since "increases" in the exchange rate indicate a depreciation of the Rand.
 
 Analyzing the crisis periods, particularly in the context of the correlation between the JSE Top 40 and the S\&P 500, reveals an interesting result. Note, the GFC period is indicated by the red shaded area, while Covid-19 is shown in blue. During the GFC the correlation jumps up initially, then turns sharply downward, before tending upward for the rest of the crisis. The difference in correlation between the start of the crises and the maximum correlation is equal to 0.075, while the difference between the start and end of the crisis is equal to 0.063.
 
@@ -722,6 +724,13 @@ garch_results_final <- garch_result_df %>%
                                  ifelse(abs(TStat) > 1.96, "**", 
                                         ifelse(abs(TStat) > 1.645, "*", ""))))
 
+#Add comment to table
+comment <- list()
+comment$pos <- list()
+comment$pos[[1]] <- c(nrow(garch_results_final))
+comment$command <- paste0("\\hline \n \\multicolumn{5}{l} ",  # we`ll replace all default hlines with this and the ones below
+                            "{Significance: *** p\\textless.01, ** p\\textless.05, * p\\textless.1} \n")
+
 table <- xtable(garch_results_final, caption = "BEKK-GARCH Results \\label{tab10}", digits = c(0,0,4,4,4,0))
 print.xtable(table,
              # tabular.environment = "longtable",
@@ -730,7 +739,9 @@ print.xtable(table,
              # scalebox = 0.3,
              comment = FALSE,
              caption.placement = 'top',
-             include.rownames = FALSE
+             include.rownames = FALSE,
+             add.to.row = comment,
+             hline.after = c(-1, 0)
              )
 
 ```

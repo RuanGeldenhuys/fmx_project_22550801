@@ -164,7 +164,7 @@
 
 \begin{frontmatter}  %
 
-\title{Volatility Spillovers from US to SA Markets}
+\title{S\&P and JSE Interlinkages: Evidence from Volatility Modeling}
 
 % Set to FALSE if wanting to remove title (for submission)
 
@@ -192,7 +192,7 @@ study is to investigate if this relationship changes in any significant
 way during the two biggest crisis periods in the last two decades,
 namely the Global Financial Crisis and Covid-19. I first do a
 stratification analysis which reveals significant evidence of these two
-indices sharing periods of high volatility. I then fit multiple
+indices sharing periods of high and low volatility. I then fit multiple
 multivariate GARCH models to further investigate the relationship and
 find conditional correlation to increase during crisis periods. Lastly,
 an investigation of volatility linkages reveals no evidence of
@@ -251,9 +251,26 @@ series econometrics essay I applied similar analysis, this time
 estimating a Bayesian VAR. Now, I turn to various volatility modeling
 methods in order to uncover new insights into the dynamics between these
 stock indices. The US stock market's position as a market leader is a
-well established fact within the literature. It therefore becomes
-imperative to understand our own local stock market's relationship with
-the US, especially in times of crisis.
+well established fact within the literature
+(\protect\hyperlink{ref-Ehrmann2011}{Ehrmann, Fratzscher \& Rigobon,
+2011}). It therefore becomes imperative to understand our own local
+stock market's relationship with the US, especially in times of crisis.
+
+The concept of stock market contagion is particularly evident from
+mature to emerging markets, as demonstrated through the use of a
+BEKK-GARCH methodology in a study by Beirne, Caporale, Schulze-Ghattas
+\& Spagnolo (\protect\hyperlink{ref-Beirne2013}{2013}). GARCH models are
+frequently used to examine volatility spillovers. Specifically, a study
+focused on South Africa utilized a DCC GARCH model to identify various
+interlinkages among the equity markets of BRICS countries
+(\protect\hyperlink{ref-BONGABONGA2018}{Bonga-Bonga, 2018}).
+Additionally, instances of structural breaks during crisis periods, like
+the GFC, encompassing both return and volatility spillovers, are
+commonly observed, as indicated in the findings of Mensi, Hammoudeh,
+Nguyen \& Kang (\protect\hyperlink{ref-Mensi2016}{2016}) and Sui \& Sun
+(\protect\hyperlink{ref-SuiSun2016}{2016}). Consequently, this body of
+literature provides the justification for the subsequent analysis.
+\footnote{For a survey on financial contagion and the associated methodologies,  see @Pericoli2003 and @Dungey2004}
 
 \hypertarget{data}{%
 \section{Data}\label{data}}
@@ -262,7 +279,7 @@ Three return series are used in the analysis that follows. These are the
 monthly returns for the S\&P 500 and the JSE Top 40, as well as thhe
 ZAR/USD exchange rate. The exchange rate is represented as the amount of
 Rands required to buy one US Dollar. Since the series is represented as
-a growth rate, a postive growth rate represents a depreciation of the
+a growth rate, a positive growth rate represents a depreciation of the
 Rand, and conversely, an appreciation of the Dollar. The inclusion of an
 exchange rate serves primarily as a control variable and as such
 analysis regarding the exchange rate is kept to a minimum in the final
@@ -271,7 +288,7 @@ Figures \ref{Figure1} to \ref{Figure3}.
 
 \begin{figure}[H]
 
-{\centering \includegraphics{Template_files/figure-latex/Figure1-1} 
+{\centering \includegraphics{FormalWriteUp_files/figure-latex/Figure1-1} 
 
 }
 
@@ -280,7 +297,7 @@ Figures \ref{Figure1} to \ref{Figure3}.
 
 \begin{figure}[H]
 
-{\centering \includegraphics{Template_files/figure-latex/Figure2-1} 
+{\centering \includegraphics{FormalWriteUp_files/figure-latex/Figure2-1} 
 
 }
 
@@ -300,7 +317,7 @@ JSE experienced the largest uptick.
 
 \begin{figure}[H]
 
-{\centering \includegraphics{Template_files/figure-latex/Figure3-1} 
+{\centering \includegraphics{FormalWriteUp_files/figure-latex/Figure3-1} 
 
 }
 
@@ -328,12 +345,12 @@ Mean & 0.0066 & 0.0121 & 0.0040 \\
 Before GARCH models can be fitted, ARCH tests need to be conducted in
 order to see if controlling for conditional heteroskedasticity is
 appropriate. I employ two tests. First, a univariate Ljung-Box test is
-conducted on each series. Practically, to test for ARCH effects a simple
-AR(1) model is fitted for each series and then Ljung-Box tests are done
-on the residuals of each AR(1). Next, multivariate Portmanteau tests are
-conducted to incorporate all variables simultaneously. As outlined by
-Tsay (\protect\hyperlink{ref-Tsay2014}{2014}), 3 tests are tun. The
-results can found in the tables below
+conducted on each series. Practically, to test for ARCH effects, a
+simple AR(1) model is fitted for each series and then Ljung-Box tests
+are done on the residuals of each AR(1). Next, multivariate Portmanteau
+tests are conducted to incorporate all variables simultaneously. As
+outlined by Tsay (\protect\hyperlink{ref-Tsay2014}{2014}), 3 tests are
+tun. The results can found in the tables below
 
 \begin{table}[H]
 \centering
@@ -470,7 +487,7 @@ The BEKK-GARCH models, initially developed by Engle \& Kroner
 study spillovers between series. The model's ability to capture dynamic
 covariances and correlations makes it particularly useful for analyzing
 the interdependencies in financial markets, especially in the context of
-crises periods. As before consider \(n\) assets with returns,
+crises periods. As before, consider \(n\) assets with returns,
 \(R_t = (R_{1t}, R_{2t}, ... R_{nt})\). For a GARCH(1,1) these returns
 are given by:
 
@@ -492,11 +509,11 @@ where \(C\), \(A\) and \(B\) are coefficient matrices. Notably, \(C\) is
 a triangular matrix with positive diagonal elements, ensuring that it is
 positive definite. This attribute removes the need for additional
 constraints. Lastly, estimation is done via maximum likelihood. For
-interpretation purposes, the variance of he first asset return can be
-written as follows:
+interpretation purposes, the variance of the first asset's returns can
+be written as follows:
 
 \begin{align}
-\sigma^2_{1,t} & = C(1,1)^2 + A(1,1)^2\mu^2_{1,t-1} + 2A(1,1)A(2,1)\mu_{1,t-1}\mu_{2,t-1} + A(2,1)^2\mu^2_{2,t-1} \label{eq8}\\
+\sigma^2_{1,t} = & C(1,1)^2 + A(1,1)^2\mu^2_{1,t-1} + 2A(1,1)A(2,1)\mu_{1,t-1}\mu_{2,t-1} + A(2,1)^2\mu^2_{2,t-1} \label{eq8}\\
 & + B(1,1)^2\sigma^2_{1,t-1} + 2B(1,1)B(2,1)\sigma_{1,t-1} + B(2,1)^2\sigma^2_{2,t-1} 
 \end{align}
 
@@ -633,7 +650,7 @@ tends to be associated with low volatility in these indices.
 
 \begin{figure}[H]
 
-{\centering \includegraphics{Template_files/figure-latex/Figure4-1} 
+{\centering \includegraphics{FormalWriteUp_files/figure-latex/Figure4-1} 
 
 }
 
@@ -641,7 +658,7 @@ tends to be associated with low volatility in these indices.
 \end{figure}
 
 The dynamic conditional correlation for the JSE Top 40, as reported by
-the DCC-GARCH model, are shown in Figure \ref{Figure4}. Intuitively, it
+the DCC-GARCH model, is shown in Figure \ref{Figure4}. Intuitively, it
 shows a noise reduced correlation between the JSE and other variables in
 the system over time. What is immediately clear is that the JSE shares a
 significantly higher correlation with the S\&P 500, than it does with
@@ -672,7 +689,7 @@ start and end of the crisis is smaller at 0.010.
 
 \begin{figure}[H]
 
-{\centering \includegraphics{Template_files/figure-latex/Figure5-1} 
+{\centering \includegraphics{FormalWriteUp_files/figure-latex/Figure5-1} 
 
 }
 
@@ -733,7 +750,8 @@ C(1,1) & 0.0381 & 0.0062 & 6.1298 & *** \\
   B(3,1) & -0.2760 & 0.3255 & -0.8479 &  \\ 
   B(3,2) & -0.8576 & 0.2674 & -3.2074 & *** \\ 
   B(3,3) & -0.0662 & 0.1848 & -0.3581 &  \\ 
-   \hline
+   \hline 
+ \multicolumn{5}{l} {Significance: *** p\textless.01, ** p\textless.05, * p\textless.1} 
 \end{tabular}
 \end{table}
 
@@ -786,6 +804,21 @@ detail.
 
 \hypertarget{refs}{}
 \begin{CSLReferences}{1}{0}
+\leavevmode\vadjust pre{\hypertarget{ref-Beirne2013}{}}%
+Beirne, J. et al. 2013. Volatility spillovers and contagion from mature
+to emerging stock markets. \emph{Review of International Economics}.
+21(5):1060--1075.
+
+\leavevmode\vadjust pre{\hypertarget{ref-BONGABONGA2018}{}}%
+Bonga-Bonga, L. 2018. Uncovering equity market contagion among BRICS
+countries: An application of the multivariate GARCH model. \emph{The
+Quarterly Review of Economics and Finance}. 67:36--44.
+
+\leavevmode\vadjust pre{\hypertarget{ref-Ehrmann2011}{}}%
+Ehrmann, M. et al. 2011. Stocks, bonds, money markets and exchange
+rates: Measuring international financial transmission. \emph{Journal of
+Applied Econometrics}. 26(6):948--974.
+
 \leavevmode\vadjust pre{\hypertarget{ref-Engle2002}{}}%
 Engle, R. 2002. Dynamic conditional correlation: A simple class of
 multivariate generalized autoregressive conditional heteroskedasticity
@@ -795,6 +828,17 @@ models. \emph{Journal of Business \& Economic Statistics}.
 \leavevmode\vadjust pre{\hypertarget{ref-Bekk1995}{}}%
 Engle, R.F. \& Kroner, K.F. 1995. Multivariate simultaneous generalized
 arch. \emph{Econometric Theory}. 11(1):122--150.
+
+\leavevmode\vadjust pre{\hypertarget{ref-Mensi2016}{}}%
+Mensi, W. et al. 2016. Global financial crisis and spillover effects
+among the u.s. And BRICS stock markets. \emph{International Review of
+Economics \& Finance}. 42:257--276.
+
+\leavevmode\vadjust pre{\hypertarget{ref-SuiSun2016}{}}%
+Sui, L. \& Sun, L. 2016. Spillover effects between exchange rates and
+stock prices: Evidence from BRICS around the recent global financial
+crisis. \emph{Research in International Business and Finance}.
+36:459--471.
 
 \leavevmode\vadjust pre{\hypertarget{ref-Tsay2014}{}}%
 Tsay, R.S. 2014. \emph{An introduction to analysis of financial data
