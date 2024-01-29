@@ -1,11 +1,17 @@
 # Purpose
 
-Purpose of this work folder.
+I investigate linkages between the S&P 500 and the JSE Top 40 through
+stratification and various GARCH modeling techniques.
 
-Ideally store a minimum working example data set in data folder.
+This README serves as guide to the code for my Financial Econometrics
+essay. The full essay can be found under “22550801_FMX_essay.pdf”. The
+code used to create the formal document can found under the “Texevier/”
+folder. All functions used in the code below are stored in separate
+scripts stored in the “code/” folder. The purpose of this README is
+therefore to document the code that was used in creating the output used
+in the essay. As such all analysis is left to the formal document.
 
-Add binary files in bin, and closed R functions in code. Human Readable
-settings files (e.g. csv) should be placed in settings/
+I first load all the required packages and functions from the scripts.
 
 ``` r
 rm(list = ls()) # Clean your environment:
@@ -13,8 +19,8 @@ gc() # garbage collection - It can be useful to call gc after a large object has
 ```
 
     ##          used (Mb) gc trigger (Mb) max used (Mb)
-    ## Ncells 467785 25.0    1006337 53.8   660382 35.3
-    ## Vcells 867489  6.7    8388608 64.0  1770696 13.6
+    ## Ncells 467907 25.0    1006685 53.8   660382 35.3
+    ## Vcells 868629  6.7    8388608 64.0  1770696 13.6
 
 ``` r
 library(tidyverse)
@@ -93,18 +99,21 @@ list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.
 # Loading and Wrangling
 
 This section deals with loading and wrangling the data into a usable
-format.
+format. I then plot the returns, absolute returns and squared returns
+using the “returns_plotter” function.
 
 ``` r
 global_indices <- readRDS("data/Global_Indices.rds")
 local_indices <- readRDS("data/LCL_Indices.rds")
 USDZAR <- readRDS("data/USDZAR.rds")
 
-SP <- global_indices %>% #This includes rand returns
+#S&P 500
+SP <- global_indices %>% 
     filter(Tickers == "SPXT") %>% 
     select(c(date, Returns)) %>% 
     rename(SP500 = Returns)
 
+#JSE Top 40
 lcl_index <- "J200" # I create this variable so the choice of SA index can easily be changed
 JSE <- local_indices %>% 
     filter(Tickers == lcl_index) %>% 
@@ -115,6 +124,7 @@ joinedDF <- left_join(SP, JSE, by = 'date')
 
 firstdate <- joinedDF %>%  slice(1) %>% pull(date)
 
+#ZAR/USD exchange rate
 ZARUSD <- USDZAR %>% 
     select(c(date, value)) %>% 
     filter(date >= firstdate) %>% 
@@ -151,8 +161,10 @@ returns_plotter(joinedDF, c("S&P 500", "JSE Top 40", "USD/ZAR"))
 
 This analysis will first focus on seeing whether the JSE experience
 higher volatility when the S&P and the rand experiences higher
-volatility. I then investigate whether all variables experienced it
-during the GFC and Covid. This follows the practical
+volatility. This follows the practical. First returns are winsorized to
+limit the impact of outliers. The “analyze_volatility_periods” then
+calculates the high and low volatility periods and subsequent ratios for
+each series.
 
 ``` r
 #Winsorizing the data to reduce influence of extreme returns
@@ -564,42 +576,17 @@ Low_Vol JSE40
 
 To test for ARCH effects I create a function that fits a simple AR(1) to
 each return series. I then run Ljung-Box tests on the residuals of each
-of those models. The null of “No ARCH effects” is rejected for all three
-series.
+of those models. This is handled by the “ljungbox_tests” function. The
+null of “No ARCH effects” is rejected for the S&P 500 and the JSE Top
+40. I then run multivariate Portmanteau tests to incorporate all series,
+simultaneously.
 
 ``` r
 ret_df <- joinedDF %>% 
     select(c(-date))
 
-
-ljungbox_tests <- function(df) {
-  results <- data.frame(Series = character(),
-                        TestStatistic = numeric(),
-                        PValue = numeric(),
-                        LagOrder = numeric(),
-                        stringsAsFactors = FALSE)
-
-  for (series in names(df)) {
-    # Fit AR(1) model
-    model <- lm(df[[series]] ~ lag(df[[series]]), data = df, na.action = na.exclude)
-
-    # Perform Ljung-Box test on squared residuals
-    test_result <- Box.test(residuals(model)^2, lag = 12, type = "Ljung-Box", fitdf = 1)
-
-    # Compile results
-    results <- rbind(results, data.frame(Series = series,
-                                         TestStatistic = test_result$statistic,
-                                         PValue = test_result$p.value,
-                                         LagOrder = 12))
-  }
-
-  rownames(results) <- NULL
-
-  return(results)
-}
-
-
-arch_results_lb <- ljungbox_tests(ret_df)
+#Call function that loops through every series and runs Ljung-Box tests
+arch_results_lb <- ljungbox_tests(ret_df) 
 kable(arch_results_lb, caption = "Ljung-Box Tests")
 ```
 
@@ -670,6 +657,7 @@ ZARUSD
 </table>
 
 ``` r
+#MV Portmanteau tests
 arch_results_march <- MarchTest(ret_df)
 ```
 
@@ -686,54 +674,12 @@ arch_results_march <- MarchTest(ret_df)
 ## Univariate GARCH models
 
 I will now fit various univariate GARCH models to determine the best
-specification.
+specification. The “uniGARCHFitter” function loops through the dataframe
+and fits 3 different GARCH models to each series. After each type of
+model is fitted, selection criteria for that model is calculated and
+added to a dataframe that will later be outputted.
 
 ``` r
-uniGarchFitter <- function(data){
-    models <- c("sGARCH", "gjrGARCH", "apARCH")
-    dist.model <- "norm"
-    
-    result_list <- list()
-    
-    #Loop through each column in DF
-    for (i in 1:ncol(data)) { 
-        resultDF <- data.frame(
-            Model = character(),
-            Akaike = integer(),
-            Bayes = integer(),
-            Shibata = integer(),
-            HannanQuinn = integer()
-        )
-        
-        j = 0
-        
-        #For each column loop through each type of model and fit it
-        for (model_type in models) {
-            j = j+1 #additional counter since we are looping though a string list
-            spec <- ugarchspec(
-                variance.model = list(model = model_type, garchOrder = c(1, 1)),
-                mean.model = list(armaOrder = c(1, 0), include.mean = TRUE),
-                distribution.model = dist.model
-                )
-            
-            fit <- ugarchfit(spec = spec, data = as.data.frame(data[i]))
-            
-            IC <- infocriteria(fit)
-            
-            resultDF[j, 1] <- model_type #Place the IC for that particular model in the DF
-            resultDF[j, 2:5] <- IC
-            
-            
-        }
-        
-        #add that result DF to the main list
-        result_list[[colnames(data)[i]]] <- resultDF 
-        
-    }
-    
-    return(result_list)
-}
-
 garch_df <- joinedDF %>% 
     select(c(SP500, JSE40, ZARUSD)) %>% 
     rename(SP = SP500,
@@ -989,11 +935,12 @@ apARCH
 
 For the S&P 500 and JSE Top 40 the gjrGARCH performs best. For the Rand
 it is the sGARCH. I therefore select the gjrGARCH as my univariate
-specification. This follows directly from the practicals.
+specification.
 
 ## Multivariate GARCH
 
 ``` r
+#Create and xts object for GARCH modeling to come
 garch_xts <- joinedDF %>% 
     rename(SP = SP500,
            JSE = JSE40,
@@ -1003,10 +950,13 @@ garch_xts <- joinedDF %>%
 
 ### DCC
 
-I first fit an Engly type DCC and then a DCC model based on the
+I first fit an Engle type DCC and then a DCC model based on the
 univariate gjrGARCH specification. The results are practically the same.
+For each model I extract the time varying correlation and run it through
+the “renamingdcc” function to spimplify plotting and analysis later on.
 
 ``` r
+#Fit DCC
 DCCpre <- dccPre(garch_xts, include.mean = T, p = 0)
 ```
 
@@ -1041,18 +991,18 @@ ReturnSeries = garch_xts
 DCC.TV.Cor = Rhot
 
 
-
-
-Rhot <- 
-  renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = Rhot)
+DCC$estimates
 ```
 
-    ## Warning: `tbl_df()` was deprecated in dplyr 1.0.0.
-    ## ℹ Please use `tibble::as_tibble()` instead.
-    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-    ## generated.
+    ## [1]  0.88528102  0.03319359 20.00000000
 
 ``` r
+#Rename TV correlations
+Rhot <- 
+  renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = Rhot)
+
+
+#Plot correlations for the JSE
 dcc_JSE <- ggplot(Rhot %>% filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
     geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
     
@@ -1071,55 +1021,41 @@ finplot(dcc_JSE)
 ![](README_files/figure-markdown_github/unnamed-chunk-7-1.png)
 
 ``` r
+#Spec and fit DCC model based on gjrGARCH specification
 uspec <- ugarchspec(variance.model = list(model = "gjrGARCH", garchOrder = c(1, 1)), 
                     mean.model = list(armaOrder = c(1, 0), include.mean = TRUE), 
                     distribution.model = "sstd")
 
 multi_univ_garch_spec <- multispec(replicate(ncol(garch_xts), uspec))
 
-spec.dcc = dccspec(multi_univ_garch_spec, dccOrder = c(1, 1), distribution = "mvnorm", 
+spec.dcc = dccspec(multi_univ_garch_spec, dccOrder = c(1, 1), 
+                   distribution = "mvnorm", 
                    lag.criterion = c("AIC", "HQ", "SC", "FPE")[1], 
                    model = c("DCC", "aDCC")[1])
 
-cl = makePSOCKcluster(10)
+cl = makePSOCKcluster(10) #Enable for speed
 
 multf = multifit(multi_univ_garch_spec, garch_xts, cluster = cl)
 
 fit.dcc = dccfit(spec.dcc, data = garch_xts, solver = "solnp", 
     cluster = cl, fit.control = list(eval.se = FALSE), fit = multf)
 
+#Extract and rename TV correlations
 RcovList <- rcov(fit.dcc)  # This is now a list of the monthly covariances of our DCC model series.
 covmat = matrix(RcovList, nrow(garch_xts), ncol(garch_xts) * ncol(garch_xts), 
     byrow = TRUE)
-mc1 = MCHdiag(garch_xts, covmat)
-```
+#mc1 = MCHdiag(garch_xts, covmat)
 
-    ## Test results:  
-    ## Q(m) of et: 
-    ## Test and p-value:  5.791687 0.8324506 
-    ## Rank-based test: 
-    ## Test and p-value:  12.66139 0.2432247 
-    ## Qk(m) of epsilon_t: 
-    ## Test and p-value:  100.1956 0.217031 
-    ## Robust Qk(m):  
-    ## Test and p-value:  76.38764 0.8462388
-
-``` r
 dcc.time.var.cor <- rcor(fit.dcc)
 
 dcc.time.var.cor <- aperm(dcc.time.var.cor, c(3, 2, 1))
 dim(dcc.time.var.cor) <- c(nrow(dcc.time.var.cor), ncol(dcc.time.var.cor)^2)
 
 dcc.time.var.cor <- renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = dcc.time.var.cor)
-```
 
-    ## Warning: `tbl_df()` was deprecated in dplyr 1.0.0.
-    ## ℹ Please use `tibble::as_tibble()` instead.
-    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-    ## generated.
-
-``` r
-dcc_JSE_gjr <- ggplot(dcc.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
+#Plot correlations for JSE
+dcc_JSE_gjr <- ggplot(dcc.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), 
+                                                         !grepl("_JSE", Pairs))) + 
     geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
     
     annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
@@ -1134,19 +1070,70 @@ dcc_JSE_gjr <- ggplot(dcc.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), 
 finplot(dcc_JSE_gjr)
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-8-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-8-1.png) Next, to
+test for changes in correlation during the GFC and Covid-19, I run the
+following code.
+
+``` r
+# This code extracts the correlations for the GFC and COvid-19.
+# It then calculates the difference between the first and max, and the first and
+# last correlation.
+
+## GFC calculations
+gfc_df <- dcc.time.var.cor %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2007-06-22") & date <= as.Date("2009-06-23"))
+
+first_gfc <- gfc_df %>% slice(1) %>% pull(Rho)
+last_gfc <- gfc_df %>% slice(n()) %>% pull(Rho)
+max_gfc <- max(gfc_df$Rho)
+
+max_gfc - first_gfc
+```
+
+    ## [1] 0.07505941
+
+``` r
+last_gfc - first_gfc
+```
+
+    ## [1] 0.06254073
+
+``` r
+## Covid-19 calculations
+covid_df <- dcc.time.var.cor %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2020-02-15") & date <= as.Date("2021-12-01"))
+
+first_covid <- covid_df %>% slice(1) %>% pull(Rho)
+last_covid <- covid_df %>% slice(n()) %>% pull(Rho)
+max_covid <- max(covid_df$Rho)
+
+max_covid - first_covid
+```
+
+    ## [1] 0.1145516
+
+``` r
+last_covid - first_covid
+```
+
+    ## [1] 0.01038957
 
 ### Go-Garch
 
-Next I fit a Go-Garch model.
+Next I fit a Go-Garch model. This model is based on the same gjrGARCH
+specification as the DCC model.
 
 ``` r
+#Spec GO-GARCH
 spec.go <- gogarchspec(multi_univ_garch_spec, 
                        distribution.model = 'mvnorm', # or manig.
                        ica = 'fastica') # Note: we use the fastICA
 cl <- makePSOCKcluster(10)
 multf <- multifit(multi_univ_garch_spec, garch_xts, cluster = cl)
 
+#Fit GO-GARCH
 fit.gogarch <- gogarchfit(spec.go, 
                       data = garch_xts, 
                       solver = 'hybrid', 
@@ -1188,22 +1175,17 @@ print(fit.gogarch)
     ## [3,] -0.00599 0.0358  0.0320
 
 ``` r
-# Extracting time-varying conditional correlations: You know the drill...
+# Extracting time-varying conditional correlations
 gog.time.var.cor <- rcor(fit.gogarch)
 gog.time.var.cor <- aperm(gog.time.var.cor,c(3,2,1))
 dim(gog.time.var.cor) <- c(nrow(gog.time.var.cor), ncol(gog.time.var.cor)^2)
-# Finally:
+# Rename TV correlations
 gog.time.var.cor <-
 renamingdcc(ReturnSeries = garch_xts, DCC.TV.Cor = gog.time.var.cor)
-```
 
-    ## Warning: `tbl_df()` was deprecated in dplyr 1.0.0.
-    ## ℹ Please use `tibble::as_tibble()` instead.
-    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-    ## generated.
-
-``` r
-gog_JSE_gjr <- ggplot(gog.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), !grepl("_JSE", Pairs)) ) + 
+#Plot correlations for JSE
+gog_JSE_gjr <- ggplot(gog.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), 
+                                                         !grepl("_JSE", Pairs))) + 
     geom_line(aes(x = date, y = Rho, colour = Pairs), linewidth = 1) + 
     
     annotate("rect", xmin = as.Date("2007-06-22"), xmax = as.Date("2009-06-23"),
@@ -1218,15 +1200,63 @@ gog_JSE_gjr <- ggplot(gog.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ), 
 finplot(gog_JSE_gjr)
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-9-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-10-1.png) The code
+that follows once again calculates differences during the GFC and
+Covid-19
+
+``` r
+# This code extracts the correlations for the GFC and COvid-19.
+# It then calculates the difference between the first and max, and the first and
+# last correlation.
+
+## GFC calculations
+gfc_df <- gog.time.var.cor %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2007-06-22") & date <= as.Date("2009-06-23"))
+
+first_gfc <- gfc_df %>% slice(1) %>% pull(Rho)
+last_gfc <- gfc_df %>% slice(n()) %>% pull(Rho)
+max_gfc <- max(gfc_df$Rho)
+
+max_gfc - first_gfc
+```
+
+    ## [1] 0.361618
+
+``` r
+last_gfc - first_gfc
+```
+
+    ## [1] 0.2189339
+
+``` r
+## Covid-19 calculations
+covid_df <- gog.time.var.cor %>% 
+    filter(Pairs == "JSE_SP") %>% 
+    filter(date >= as.Date("2020-02-15") & date <= as.Date("2021-12-01"))
+
+first_covid <- covid_df %>% slice(1) %>% pull(Rho)
+last_covid <- covid_df %>% slice(n()) %>% pull(Rho)
+max_covid <- max(covid_df$Rho)
+
+max_covid - first_covid
+```
+
+    ## [1] 0.2781306
+
+``` r
+last_covid - first_covid
+```
+
+    ## [1] -0.01110067
 
 ### BEKK-GARCH
 
 Lastly I fit a BEKK-GARCH model to estimate the spillover effects
-between the 3 return series. Their estimates are given in the tables
-that follow.
+between the 3 return series.
 
 ``` r
+#Convert dataframe to matrix as the BEKK function requires a matric
 garch_df <- joinedDF %>% 
     select(c(SP500, JSE40, ZARUSD)) %>% 
     rename(SP = SP500,
@@ -1234,445 +1264,533 @@ garch_df <- joinedDF %>%
            ZARUSD = ZARUSD) 
 
 garch_matrix <- as.matrix(garch_df)
+
+#Estimate the BEKK-GARCH model
 estimated <- mgarchBEKK::BEKK(garch_matrix)
 ```
 
+The default output of the fitting the BEKK model is parameter matrices.
+This is quite convenient, however for the sake of the write up a table
+will work better. I therefore write a simple matrix extractor function
+that takes each element in a matrix and puts it in a dataframe. I then
+create such a dataframe for each parameter matrix and bind them by rows.
+
 ``` r
-BEKK_estimates <- estimated$est.params
-names(BEKK_estimates) <- c("Constants", "ARCH estimates", "GARCH estimates")
+extract_matrix_elements <- function(matrix, prefix) {
+  # Initialize an empty dataframe with appropriate column names
+  result_df <- data.frame(Position = character(), 
+                          Value = numeric(), 
+                          stringsAsFactors = FALSE)
 
-BEKK_se <- estimated$asy.se.coef
-names(BEKK_se) <- c("Constants' standard errors", "ARCH standard errors", 
-                    "GARCH standard errors")
-
-
-matrix_rename <- function(matrix, headers){
-    colnames(matrix) <- headers
-    rownames(matrix) <- headers
-    return(matrix)
+  # Loop through each element of the matrix
+  for (row in 1:nrow(matrix)) {
+    for (col in 1:ncol(matrix)) {
+      # Create a position string (e.g., "(2,1)")
+        #The prefix arguments serves as a way to identify which matrix 
+        #the coefficient is from
+      position <- paste(prefix ,"(", row, ",", col, ")", sep = "") 
+      
+      # Append the position and value to the dataframe
+      result_df <- rbind(result_df, data.frame(Position = position, 
+                                               Value = matrix[row, col]))
+    }
+  }
+  
+  return(result_df)
 }
 
-renamed_BEKK_estimates <- lapply(BEKK_estimates, matrix_rename, 
-                                 headers = c("SP", "JSE", "Rand"))
-renamed_BEKK_se <- lapply(BEKK_se, matrix_rename, 
-                          headers = c("SP", "JSE", "Rand"))
+#Extract constants
+garch_constants <- extract_matrix_elements(estimated$est.params[[1]], "C")
+garch_constants_se <- extract_matrix_elements(estimated$asy.se.coef[[1]], "C")
 
+garch_result_df <- left_join(garch_constants, garch_constants_se, by="Position") %>% 
+    filter(Value.x != 0) #Filter out zeros, since the matrix is triangular
 
-kable(renamed_BEKK_estimates$Constants,
-      caption = 'Constants')
+#Extract ARCH effects
+garch_amat <- extract_matrix_elements(estimated$est.params[[2]], "A")
+garch_amat_se <- extract_matrix_elements(estimated$asy.se.coef[[2]], "A")
+
+amat_joined <- left_join(garch_amat, garch_amat_se, by="Position")
+
+#Extract GARCH effects
+garch_bmat <- extract_matrix_elements(estimated$est.params[[3]], "B")
+garch_bmat_se <- extract_matrix_elements(estimated$asy.se.coef[[3]], "B")
+
+bmat_joined <- left_join(garch_bmat, garch_bmat_se, by="Position")
+
+garch_result_df <- rbind(garch_result_df, amat_joined)
+garch_result_df <- rbind(garch_result_df, bmat_joined)
+colnames(garch_result_df) <- c(" ", "Coefficient", "Std. Error")
+
+# Add stars indicating significant levels
+garch_results_final <- garch_result_df %>% 
+    mutate(TStat = Coefficient / `Std. Error`,
+           Significance = ifelse(abs(TStat) > 2.576, "***", 
+                                 ifelse(abs(TStat) > 1.96, "**", 
+                                        ifelse(abs(TStat) > 1.645, "*", ""))))
+
+#Output entire table
+kable(garch_results_final, caption = "BEKK-GARCH results")
 ```
 
 <table>
 <caption>
-Constants
+BEKK-GARCH results
 </caption>
 <thead>
 <tr>
 <th style="text-align:left;">
 </th>
 <th style="text-align:right;">
-SP
+Coefficient
 </th>
 <th style="text-align:right;">
-JSE
+Std. Error
 </th>
 <th style="text-align:right;">
-Rand
+TStat
+</th>
+<th style="text-align:left;">
+Significance
 </th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td style="text-align:left;">
-SP
+C(1,1)
 </td>
 <td style="text-align:right;">
 0.0380978
 </td>
 <td style="text-align:right;">
-0.0182193
-</td>
-<td style="text-align:right;">
--0.0142889
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-JSE
-</td>
-<td style="text-align:right;">
-0.0000000
-</td>
-<td style="text-align:right;">
-0.0150211
-</td>
-<td style="text-align:right;">
--0.0091460
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Rand
-</td>
-<td style="text-align:right;">
-0.0000000
-</td>
-<td style="text-align:right;">
-0.0000000
-</td>
-<td style="text-align:right;">
-0.0391408
-</td>
-</tr>
-</tbody>
-</table>
-
-``` r
-kable(renamed_BEKK_se$`Constants' standard errors`,
-      caption = "Constants' standard errors")
-```
-
-<table>
-<caption>
-Constants’ standard errors
-</caption>
-<thead>
-<tr>
-<th style="text-align:left;">
-</th>
-<th style="text-align:right;">
-SP
-</th>
-<th style="text-align:right;">
-JSE
-</th>
-<th style="text-align:right;">
-Rand
-</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left;">
-SP
-</td>
-<td style="text-align:right;">
 0.0062151
+</td>
+<td style="text-align:right;">
+6.1298280
+</td>
+<td style="text-align:left;">
+\*\*\*
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+C(1,2)
+</td>
+<td style="text-align:right;">
+0.0182193
 </td>
 <td style="text-align:right;">
 0.0149529
 </td>
 <td style="text-align:right;">
-0.0049230
+1.2184484
+</td>
+<td style="text-align:left;">
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-JSE
+C(1,3)
 </td>
 <td style="text-align:right;">
-0.0000000
+-0.0142889
+</td>
+<td style="text-align:right;">
+0.0049230
+</td>
+<td style="text-align:right;">
+-2.9024971
+</td>
+<td style="text-align:left;">
+\*\*\*
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+C(2,2)
+</td>
+<td style="text-align:right;">
+0.0150211
 </td>
 <td style="text-align:right;">
 0.0200417
 </td>
 <td style="text-align:right;">
-0.0174655
+0.7494933
+</td>
+<td style="text-align:left;">
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-Rand
+C(2,3)
 </td>
 <td style="text-align:right;">
-0.0000000
+-0.0091460
 </td>
 <td style="text-align:right;">
-0.0000000
+0.0174655
+</td>
+<td style="text-align:right;">
+-0.5236604
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+C(3,3)
+</td>
+<td style="text-align:right;">
+0.0391408
 </td>
 <td style="text-align:right;">
 0.0070223
 </td>
+<td style="text-align:right;">
+5.5738171
+</td>
+<td style="text-align:left;">
+\*\*\*
+</td>
 </tr>
-</tbody>
-</table>
-
-``` r
-kable(renamed_BEKK_estimates$`ARCH estimates`,
-      caption = "ARCH Estimates")
-```
-
-<table>
-<caption>
-ARCH Estimates
-</caption>
-<thead>
-<tr>
-<th style="text-align:left;">
-</th>
-<th style="text-align:right;">
-SP
-</th>
-<th style="text-align:right;">
-JSE
-</th>
-<th style="text-align:right;">
-Rand
-</th>
-</tr>
-</thead>
-<tbody>
 <tr>
 <td style="text-align:left;">
-SP
+A(1,1)
 </td>
 <td style="text-align:right;">
 0.0539006
 </td>
 <td style="text-align:right;">
--0.3133579
-</td>
-<td style="text-align:right;">
--0.3343832
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-JSE
-</td>
-<td style="text-align:right;">
--0.3058476
-</td>
-<td style="text-align:right;">
-0.1427509
-</td>
-<td style="text-align:right;">
-0.5941598
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Rand
-</td>
-<td style="text-align:right;">
-0.2485180
-</td>
-<td style="text-align:right;">
-0.2343271
-</td>
-<td style="text-align:right;">
--0.0621894
-</td>
-</tr>
-</tbody>
-</table>
-
-``` r
-kable(renamed_BEKK_se$`ARCH standard errors`,
-      caption = "ARCH standard errors")
-```
-
-<table>
-<caption>
-ARCH standard errors
-</caption>
-<thead>
-<tr>
-<th style="text-align:left;">
-</th>
-<th style="text-align:right;">
-SP
-</th>
-<th style="text-align:right;">
-JSE
-</th>
-<th style="text-align:right;">
-Rand
-</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left;">
-SP
-</td>
-<td style="text-align:right;">
 0.1957541
+</td>
+<td style="text-align:right;">
+0.2753486
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+A(1,2)
+</td>
+<td style="text-align:right;">
+-0.3133579
 </td>
 <td style="text-align:right;">
 0.2961480
 </td>
 <td style="text-align:right;">
+-1.0581127
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+A(1,3)
+</td>
+<td style="text-align:right;">
+-0.3343832
+</td>
+<td style="text-align:right;">
 0.1862873
 </td>
-</tr>
-<tr>
+<td style="text-align:right;">
+-1.7949869
+</td>
 <td style="text-align:left;">
-JSE
-</td>
-<td style="text-align:right;">
-0.1514115
-</td>
-<td style="text-align:right;">
-0.1914826
-</td>
-<td style="text-align:right;">
-0.1497553
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Rand
-</td>
-<td style="text-align:right;">
-0.0894545
-</td>
-<td style="text-align:right;">
-0.1199156
-</td>
-<td style="text-align:right;">
-0.1223480
-</td>
-</tr>
-</tbody>
-</table>
+
+-   </td>
+    </tr>
+    <tr>
+    <td style="text-align:left;">
+    A(2,1)
+    </td>
+    <td style="text-align:right;">
+    -0.3058476
+    </td>
+    <td style="text-align:right;">
+    0.1514115
+    </td>
+    <td style="text-align:right;">
+    -2.0199757
+    </td>
+    <td style="text-align:left;">
+    \*\*
+    </td>
+    </tr>
+    <tr>
+    <td style="text-align:left;">
+    A(2,2)
+    </td>
+    <td style="text-align:right;">
+    0.1427509
+    </td>
+    <td style="text-align:right;">
+    0.1914826
+    </td>
+    <td style="text-align:right;">
+    0.7455035
+    </td>
+    <td style="text-align:left;">
+    </td>
+    </tr>
+    <tr>
+    <td style="text-align:left;">
+    A(2,3)
+    </td>
+    <td style="text-align:right;">
+    0.5941598
+    </td>
+    <td style="text-align:right;">
+    0.1497553
+    </td>
+    <td style="text-align:right;">
+    3.9675387
+    </td>
+    <td style="text-align:left;">
+    \*\*\*
+    </td>
+    </tr>
+    <tr>
+    <td style="text-align:left;">
+    A(3,1)
+    </td>
+    <td style="text-align:right;">
+    0.2485180
+    </td>
+    <td style="text-align:right;">
+    0.0894545
+    </td>
+    <td style="text-align:right;">
+    2.7781504
+    </td>
+    <td style="text-align:left;">
+    \*\*\*
+    </td>
+    </tr>
+    <tr>
+    <td style="text-align:left;">
+    A(3,2)
+    </td>
+    <td style="text-align:right;">
+    0.2343271
+    </td>
+    <td style="text-align:right;">
+    0.1199156
+    </td>
+    <td style="text-align:right;">
+    1.9541008
+    </td>
+    <td style="text-align:left;">
+
+    -   </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+        A(3,3)
+        </td>
+        <td style="text-align:right;">
+        -0.0621894
+        </td>
+        <td style="text-align:right;">
+        0.1223480
+        </td>
+        <td style="text-align:right;">
+        -0.5082993
+        </td>
+        <td style="text-align:left;">
+        </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+        B(1,1)
+        </td>
+        <td style="text-align:right;">
+        -0.0013453
+        </td>
+        <td style="text-align:right;">
+        0.1913787
+        </td>
+        <td style="text-align:right;">
+        -0.0070297
+        </td>
+        <td style="text-align:left;">
+        </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+        B(1,2)
+        </td>
+        <td style="text-align:right;">
+        -0.0215581
+        </td>
+        <td style="text-align:right;">
+        0.5822370
+        </td>
+        <td style="text-align:right;">
+        -0.0370263
+        </td>
+        <td style="text-align:left;">
+        </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+        B(1,3)
+        </td>
+        <td style="text-align:right;">
+        -0.0150115
+        </td>
+        <td style="text-align:right;">
+        0.0757566
+        </td>
+        <td style="text-align:right;">
+        -0.1981539
+        </td>
+        <td style="text-align:left;">
+        </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+        B(2,1)
+        </td>
+        <td style="text-align:right;">
+        0.0322619
+        </td>
+        <td style="text-align:right;">
+        0.1296931
+        </td>
+        <td style="text-align:right;">
+        0.2487554
+        </td>
+        <td style="text-align:left;">
+        </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+        B(2,2)
+        </td>
+        <td style="text-align:right;">
+        0.0813841
+        </td>
+        <td style="text-align:right;">
+        0.3297444
+        </td>
+        <td style="text-align:right;">
+        0.2468097
+        </td>
+        <td style="text-align:left;">
+        </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+        B(2,3)
+        </td>
+        <td style="text-align:right;">
+        -0.0049306
+        </td>
+        <td style="text-align:right;">
+        0.0646160
+        </td>
+        <td style="text-align:right;">
+        -0.0763063
+        </td>
+        <td style="text-align:left;">
+        </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+        B(3,1)
+        </td>
+        <td style="text-align:right;">
+        -0.2760136
+        </td>
+        <td style="text-align:right;">
+        0.3255124
+        </td>
+        <td style="text-align:right;">
+        -0.8479357
+        </td>
+        <td style="text-align:left;">
+        </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+        B(3,2)
+        </td>
+        <td style="text-align:right;">
+        -0.8576035
+        </td>
+        <td style="text-align:right;">
+        0.2673825
+        </td>
+        <td style="text-align:right;">
+        -3.2074032
+        </td>
+        <td style="text-align:left;">
+        \*\*\*
+        </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+        B(3,3)
+        </td>
+        <td style="text-align:right;">
+        -0.0661716
+        </td>
+        <td style="text-align:right;">
+        0.1847699
+        </td>
+        <td style="text-align:right;">
+        -0.3581295
+        </td>
+        <td style="text-align:left;">
+        </td>
+        </tr>
+        </tbody>
+        </table>
+
+What you are left with is a table with all the parameters in the
+BEKK-GARCH model and their significance levels.
 
 ``` r
-kable(renamed_BEKK_estimates$`GARCH estimates`,
-      caption = "GARCH Estimates")
+## You can uncomment this code if you prefer the results to be represented in
+##  matrices
+
+# BEKK_estimates <- estimated$est.params
+# names(BEKK_estimates) <- c("Constants", "ARCH estimates", "GARCH estimates")
+# 
+# BEKK_se <- estimated$asy.se.coef
+# names(BEKK_se) <- c("Constants' standard errors", "ARCH standard errors", 
+#                     "GARCH standard errors")
+# 
+# 
+# matrix_rename <- function(matrix, headers){
+#     colnames(matrix) <- headers
+#     rownames(matrix) <- headers
+#     return(matrix)
+# }
+# 
+# renamed_BEKK_estimates <- lapply(BEKK_estimates, matrix_rename, 
+#                                  headers = c("SP", "JSE", "Rand"))
+# renamed_BEKK_se <- lapply(BEKK_se, matrix_rename, 
+#                           headers = c("SP", "JSE", "Rand"))
+# 
+# 
+# kable(renamed_BEKK_estimates$Constants,
+#       caption = 'Constants')
+# kable(renamed_BEKK_se$`Constants' standard errors`,
+#       caption = "Constants' standard errors")
+# 
+# kable(renamed_BEKK_estimates$`ARCH estimates`,
+#       caption = "ARCH Estimates")
+# kable(renamed_BEKK_se$`ARCH standard errors`,
+#       caption = "ARCH standard errors")
+# 
+# kable(renamed_BEKK_estimates$`GARCH estimates`,
+#       caption = "GARCH Estimates")
+# kable(renamed_BEKK_se$`GARCH standard errors`,
+#       caption = "GARCH standard errors")
 ```
-
-<table>
-<caption>
-GARCH Estimates
-</caption>
-<thead>
-<tr>
-<th style="text-align:left;">
-</th>
-<th style="text-align:right;">
-SP
-</th>
-<th style="text-align:right;">
-JSE
-</th>
-<th style="text-align:right;">
-Rand
-</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left;">
-SP
-</td>
-<td style="text-align:right;">
--0.0013453
-</td>
-<td style="text-align:right;">
--0.0215581
-</td>
-<td style="text-align:right;">
--0.0150115
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-JSE
-</td>
-<td style="text-align:right;">
-0.0322619
-</td>
-<td style="text-align:right;">
-0.0813841
-</td>
-<td style="text-align:right;">
--0.0049306
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Rand
-</td>
-<td style="text-align:right;">
--0.2760136
-</td>
-<td style="text-align:right;">
--0.8576035
-</td>
-<td style="text-align:right;">
--0.0661716
-</td>
-</tr>
-</tbody>
-</table>
-
-``` r
-kable(renamed_BEKK_se$`GARCH standard errors`,
-      caption = "GARCH standard errors")
-```
-
-<table>
-<caption>
-GARCH standard errors
-</caption>
-<thead>
-<tr>
-<th style="text-align:left;">
-</th>
-<th style="text-align:right;">
-SP
-</th>
-<th style="text-align:right;">
-JSE
-</th>
-<th style="text-align:right;">
-Rand
-</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left;">
-SP
-</td>
-<td style="text-align:right;">
-0.1913787
-</td>
-<td style="text-align:right;">
-0.5822370
-</td>
-<td style="text-align:right;">
-0.0757566
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-JSE
-</td>
-<td style="text-align:right;">
-0.1296931
-</td>
-<td style="text-align:right;">
-0.3297444
-</td>
-<td style="text-align:right;">
-0.0646160
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Rand
-</td>
-<td style="text-align:right;">
-0.3255124
-</td>
-<td style="text-align:right;">
-0.2673825
-</td>
-<td style="text-align:right;">
-0.1847699
-</td>
-</tr>
-</tbody>
-</table>

@@ -1,4 +1,6 @@
 #Stratification functions
+
+#This function calculates periods of high and low volatility for a given series
 identify_vol_periods <- function(df, series_name) {
     df %>%
         select(date, series_name) %>%
@@ -11,10 +13,11 @@ identify_vol_periods <- function(df, series_name) {
         select(Year, HighVol, LowVol)
 }
 
+
+#This function first calculates the full sample SD for a series
+#It then calculates the SD during either high or low volatility periods of a different series
+#  and compares with full sample SD
 Perf_comparisons <- function(df, Ys, Alias){
-    #This function first calculates the full sample SD for JSE and the Rand
-    #It then calculates the SD during either high or low volatility periods of S&P
-    #   and compares with full sample SD
 
     Unconditional_SD <-
         df %>%
@@ -30,7 +33,7 @@ Perf_comparisons <- function(df, Ys, Alias){
 
 }
 
-
+#This function combines the above two, to provide startification analysis for all series
 analyze_volatility_periods <- function(joinedDF, series_name, all_indices) {
     # Identify high and low volatility periods for the specified series
     vol_periods <- identify_vol_periods(joinedDF, series_name)
