@@ -16,83 +16,18 @@ I first load all the required packages and functions from the scripts.
 ``` r
 rm(list = ls()) # Clean your environment:
 gc() # garbage collection - It can be useful to call gc after a large object has been removed, as this may prompt R to return memory to the operating system.
-```
-
-    ##          used (Mb) gc trigger (Mb) max used (Mb)
-    ## Ncells 467907 25.0    1006685 53.8   660382 35.3
-    ## Vcells 868629  6.7    8388608 64.0  1770696 13.6
-
-``` r
 library(tidyverse)
-```
-
-    ## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-    ## ✔ dplyr     1.1.3     ✔ readr     2.1.4
-    ## ✔ forcats   1.0.0     ✔ stringr   1.5.1
-    ## ✔ ggplot2   3.4.4     ✔ tibble    3.2.1
-    ## ✔ lubridate 1.9.2     ✔ tidyr     1.3.0
-    ## ✔ purrr     1.0.2     
-    ## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-    ## ✖ dplyr::filter() masks stats::filter()
-    ## ✖ dplyr::lag()    masks stats::lag()
-    ## ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
-
-``` r
 library(readxl)
 library(fmxdat)
 library(tseries)
-```
-
-    ## Registered S3 method overwritten by 'quantmod':
-    ##   method            from
-    ##   as.zoo.data.frame zoo
-
-``` r
 library(knitr)
 library(MTS)
 library(zoo)
-```
-
-    ## 
-    ## Attaching package: 'zoo'
-    ## 
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     as.Date, as.Date.numeric
-
-``` r
 library(ggthemes)
 library(rmgarch)
-```
-
-    ## Loading required package: rugarch
-    ## Loading required package: parallel
-    ## 
-    ## Attaching package: 'rugarch'
-    ## 
-    ## The following object is masked from 'package:purrr':
-    ## 
-    ##     reduce
-    ## 
-    ## The following object is masked from 'package:stats':
-    ## 
-    ##     sigma
-    ## 
-    ## 
-    ## Attaching package: 'rmgarch'
-    ## 
-    ## The following objects are masked from 'package:dplyr':
-    ## 
-    ##     first, last
-
-``` r
 library(rugarch)
 library(mgarchBEKK)
-```
 
-    ## Loading required package: mvtnorm
-
-``` r
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 ```
 
@@ -669,12 +604,12 @@ arch_results_march <- MarchTest(ret_df)
     ## Test statistic:  165.2131  p-value:  2.329855e-06 
     ## Robust Test(5%) :  144.048  p-value:  0.000259541
 
-#GARCH modelling
+# GARCH modelling
 
 ## Univariate GARCH models
 
 I will now fit various univariate GARCH models to determine the best
-specification. The “uniGARCHFitter” function loops through the dataframe
+specification. The “uniGarchFitter” function loops through the dataframe
 and fits 3 different GARCH models to each series. After each type of
 model is fitted, selection criteria for that model is calculated and
 added to a dataframe that will later be outputted.
@@ -1070,9 +1005,10 @@ dcc_JSE_gjr <- ggplot(dcc.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ),
 finplot(dcc_JSE_gjr)
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-8-1.png) Next, to
-test for changes in correlation during the GFC and Covid-19, I run the
-following code.
+![](README_files/figure-markdown_github/unnamed-chunk-8-1.png)
+
+Next, to test for changes in correlation during the GFC and Covid-19, I
+run the following code.
 
 ``` r
 # This code extracts the correlations for the GFC and COvid-19.
@@ -1200,9 +1136,10 @@ gog_JSE_gjr <- ggplot(gog.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ),
 finplot(gog_JSE_gjr)
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-10-1.png) The code
-that follows once again calculates differences during the GFC and
-Covid-19
+![](README_files/figure-markdown_github/unnamed-chunk-10-1.png)
+
+The code that follows once again calculates differences during the GFC
+and Covid-19
 
 ``` r
 # This code extracts the correlations for the GFC and COvid-19.
@@ -1753,7 +1690,9 @@ A(1,3)
         </table>
 
 What you are left with is a table with all the parameters in the
-BEKK-GARCH model and their significance levels.
+BEKK-GARCH model and their significance levels. The output for the
+significance levels appear strange here but work fine within the formal
+document.
 
 ``` r
 ## You can uncomment this code if you prefer the results to be represented in

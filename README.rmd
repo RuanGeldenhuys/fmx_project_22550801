@@ -11,7 +11,7 @@ I investigate linkages between the S&P 500 and the JSE Top 40 through stratifica
 This README serves as guide to the code for my Financial Econometrics essay. The full essay can be found under "22550801_FMX_essay.pdf". The code used to create the formal document can found under the "Texevier/" folder. All functions used in the code below are stored in separate scripts stored in the "code/" folder. The purpose of this README is therefore to document the code that was used in creating the output used in the essay. As such all analysis is left to the formal document.
 
 I first load all the required packages and functions from the scripts.
-```{r, warning=FALSE}
+```{r, warning=FALSE, message=FALSE, results='hide'}
 
 rm(list = ls()) # Clean your environment:
 gc() # garbage collection - It can be useful to call gc after a large object has been removed, as this may prompt R to return memory to the operating system.
@@ -128,11 +128,11 @@ arch_results_march <- MarchTest(ret_df)
 
 ```
 
-#GARCH modelling
+# GARCH modelling
 
 ## Univariate GARCH models
 
-I will now fit various univariate GARCH models to determine the best specification. The "uniGARCHFitter" function loops through the dataframe and fits 3 different GARCH models to each series. After each type of model is fitted, selection criteria for that model is calculated and added to a dataframe that will later be outputted. 
+I will now fit various univariate GARCH models to determine the best specification. The "uniGarchFitter" function loops through the dataframe and fits 3 different GARCH models to each series. After each type of model is fitted, selection criteria for that model is calculated and added to a dataframe that will later be outputted. 
 
 ```{r}
 
@@ -260,6 +260,7 @@ finplot(dcc_JSE_gjr)
 
 
 ```
+
 Next, to test for changes in correlation during the GFC and Covid-19, I run the following code.
 
 ```{r}
@@ -343,7 +344,9 @@ gog_JSE_gjr <- ggplot(gog.time.var.cor %>% dplyr::filter(grepl("JSE_", Pairs ),
 finplot(gog_JSE_gjr)
 
 ```
+
 The code that follows once again calculates differences during the GFC and Covid-19
+
 ```{r}
 # This code extracts the correlations for the GFC and COvid-19.
 # It then calculates the difference between the first and max, and the first and
@@ -457,7 +460,7 @@ garch_results_final <- garch_result_df %>%
 kable(garch_results_final, caption = "BEKK-GARCH results")
 ```
 
-What you are left with is a table with all the parameters in the BEKK-GARCH model and their significance levels.
+What you are left with is a table with all the parameters in the BEKK-GARCH model and their significance levels. The output for the significance levels appear strange here but work fine within the formal document.
 
 ```{r, results='asis'}
 ## You can uncomment this code if you prefer the results to be represented in
